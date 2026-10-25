@@ -1,10 +1,8 @@
 #![allow(unused_unsafe)]
 
-//! Contains implementations for rust core that have not been stabilized
+//! Implementations of core APIs that were not stable when they were added here.
 //!
-//! Functions in this are expected to be properly peer reviewed by the community
-//!
-//! Any modifications done are purely to make the code compatible with uklad
+//! These mirror the corresponding standard-library implementations, with modifications only where required by this crate.
 
 use core::mem::{self, MaybeUninit};
 
@@ -16,7 +14,7 @@ use core::mem::{self, MaybeUninit};
 /// `next` at most `N` times, the iterator can still be used afterwards to
 /// retrieve the remaining items.
 ///
-/// If `iter.next()` panicks, all items already yielded by the iterator are
+/// If `iter.next()` panics, all items already yielded by the iterator are
 /// dropped.
 #[allow(clippy::while_let_on_iterator)]
 pub fn collect_into_array<E, I, T, const N: usize>(iter: &mut I) -> Option<Result<[T; N], E>>

@@ -36,7 +36,7 @@ The following changes have been made:
 - `.allow_trailing_bytes()` has been removed.
 - You can no longer (de)serialize from the `Options` trait directly. Use one of the `encode_` or `decode_` methods.
 
-Because of confusion with `Options` defaults in uklad 1, we have made `Configuration` mandatory in all calls in uklad 2.
+To avoid the ambiguity of `Options` defaults in uklad 1, `Configuration` is a required argument for all calls in uklad 2.
 
 ## Migrating with `serde`
 
@@ -109,7 +109,6 @@ Currently not many libraries support the traits `Encode` and `Decode`. There are
 - Enable the `serde` feature and add a `#[uklad(with_serde)]` above each field that implements `serde::Serialize/Deserialize` but not `Encode/Decode`
 - Enable the `serde` feature and wrap your field in [uklad::serde::Compat](https://docs.rs/uklad/2/uklad/serde/struct.Compat.html) or [uklad::serde::BorrowCompat](https://docs.rs/uklad/2/uklad/serde/struct.BorrowCompat.html)
 - Make a pull request to the library:
-  - Make sure to be respectful, most of the developers are doing this in their free time.
   - Add a dependency `uklad = { version = "2.0", default-features = false, optional = true }` to the `Cargo.toml`
   - Implement [Encode](https://docs.rs/uklad/2/uklad/enc/trait.Encode.html)
   - Implement [Decode](https://docs.rs/uklad/2/uklad/de/trait.Decode.html)

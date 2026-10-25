@@ -63,7 +63,7 @@ The encoding format is stable, provided the same configuration is used.
 This should ensure that later versions can still read data produced by a previous versions of the library if no major version change
 has occurred.
 
-Uklad 1 and 2 are completely compatible if the same configuration is used.
+Uklad 2 can read and write data produced by uklad 1 when the same configuration is used.
 
 Uklad is invariant over byte-order, making an exchange between different
 architectures possible. It is also rather space efficient, as it stores no
@@ -78,24 +78,22 @@ features are outside the scope of this crate.
 
 Uklad attempts to protect against hostile data. There is a maximum size
 configuration available (`Configuration::with_limit`), but not enabled in the
-default configuration. Enabling it causes pre-allocation size to be limited to
-prevent against memory exhaustion attacks.
+default configuration. Enabling it limits pre-allocation size to
+prevent memory exhaustion attacks.
 
 Deserializing any incoming data will not cause undefined behavior or memory
 issues, assuming that the deserialization code for the struct is safe itself.
 
 Uklad can be used for untrusted inputs in the sense that it will not create a
-security issues in your application, provided the configuration is changed to enable a
+security issue in your application, provided the configuration is changed to enable a
 maximum size limit. Malicious inputs will fail upon deserialization.
 
 ### What is Uklad's MSRV (minimum supported Rust version)?
 
 Uklad 2.0 has an MSRV of 1.85.0. Any changes to the MSRV are considered a breaking change for semver purposes, except when certain features are enabled. Features affecting MSRV are documented in the crate root.
 
-### Why does uklad not respect `#[repr(u8)]`?
+### Does uklad respect `#[repr(u8)]`?
 
-Uklad will encode enum variants as a `u32`. If you're worried about storage size, we can recommend enabling `Configuration::with_variable_int_encoding()`. This option is enabled by default with the `standard` configuration. In this case enum variants will almost always be encoded as a `u8`.
+Uklad encodes enum variants as a `u32`. For smaller output, enable `Configuration::with_variable_int_encoding()`; this option is enabled by default in the `standard` configuration, in which case enum variants are generally encoded as a `u8`.
 
-Currently we have not found a compelling case to respect `#[repr(...)]`. You're most likely trying to interop with a format that is similar-but-not-quite-uklad. We only support our own protocol ([spec](https://github.com/bgw/uklad/blob/trunk/docs/spec.md)).
-
-If you really want to use uklad to encode/decode a different protocol, consider implementing `Encode` and `Decode` yourself. `uklad-derive` will output the generated implementation in `target/generated/uklad/<name>_Encode.rs` and `target/generated/uklad/<name>_Decode.rs` which should get you started.
+`#[repr(...)]` is not used because uklad defines its own format rather than mirroring Rust's in-memory representation. To encode or decode a different protocol, implement `Encode` and `Decode` directly. `uklad-derive` outputs its generated implementations to `target/generated/uklad/<name>_Encode.rs` and `target/generated/uklad/<name>_Decode.rs`, which can serve as a reference.

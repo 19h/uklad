@@ -1,27 +1,23 @@
-# Uklad compatibility test
+# Uklad compatibility tests
 
-Hello! We are working on releasing uklad 2, and we want to make sure that uklad 2 produces the same output as uklad 1.3.
+This crate verifies that uklad 2 produces the same output as uklad 1.3 for equivalent configurations. It encodes types with a range of settings, compares the results, and checks that decoding round-trips.
 
-For this, we need your help. Please read on if you're using uklad in one of your projects.
+## Adding a test case
 
-We have created a test project that can be used to test the compatibility between uklad 1 and 2. It encodes structs with a wide range of settings, checks if the outputs are the same, and then deserializes the struct and checks if the output is the same.
+To add a test case for a project, follow these steps:
 
-## Adding a test case for your project
-
-To add a test case for your project, please follow the following steps:
-- [ ] Fork https://github.com/bgw/uklad
-- [ ] create a new file `compatibility/src/<name>.rs`.
-- [ ] Add a link to your project
-- [ ] Add `Licence: MIT OR Apache-2.0` if you agree to distribute your code under this license
-- [ ] Add a `mod <name>;` in the `lib.rs`. Make sure it's alphabetically ordered (check the ordering in your file system).
-- [ ] Add your structs.
-  - Adding references to libraries is not recommended. Libraries will not be implementing `uklad 2`'s encoding/decoding system.
-  - If you need references to libraries, consider adding a test case for that library, and then referencing that test.
-- [ ] Make sure structs derive the following traits:
-  - [ ] `serde::Serialize` and `serde::Deserialize`, like normal
-  - [ ] `uklad_2::Encode` and `uklad_2::Decode`, for the uklad 2 encode/decode mechanic
-  - [ ] Because the crate is renamed to `uklad_2`, you also need to add `#[uklad(crate = "uklad_2")]`
-  - [ ] `Debug, PartialEq`
+- [ ] Create a new file `compatibility/src/<name>.rs`.
+- [ ] Add a link to the project.
+- [ ] Add `License: MIT OR Apache-2.0` if the code is distributed under that license.
+- [ ] Add a `mod <name>;` in `lib.rs`, keeping the list alphabetically ordered.
+- [ ] Add the structs.
+  - Prefer defining types locally rather than referencing external libraries, since those libraries will not implement uklad 2's encoding system.
+  - If a library type is required, consider adding a test case for that library and referencing it instead.
+- [ ] Derive the following traits:
+  - [ ] `serde::Serialize` and `serde::Deserialize`.
+  - [ ] `uklad_2::Encode` and `uklad_2::Decode`.
+  - [ ] `Debug` and `PartialEq`.
+  - [ ] Because the crate is renamed to `uklad_2`, add `#[uklad(crate = "uklad_2")]`.
 
 ```rs
 #[derive(Serialize, Deserialize, uklad_2::Encode, uklad_2::Decode, Debug, PartialEq)]
@@ -30,9 +26,9 @@ pub struct YourStruct {
 }
 ```
 
-- [ ] Use `rand` to be able to generate a random test case for your project.
-  - [ ] For strings there is a helper function in `crate`: `gen_string(rng: &mut impl Rng) -> String`
-- [ ] Add the following code:
+- [ ] Use `rand` to generate random test data.
+  - [ ] For strings, use the helper `gen_string(rng: &mut impl Rng) -> String`.
+- [ ] Add the following test:
 
 ```rs
 #[test]
@@ -44,6 +40,6 @@ pub fn test() {
 }
 ```
 
-For examples, see the existing cases in `compatibility/src/`.
+See the existing cases in `compatibility/src/` for examples.
 
-- [ ] Open a [pull request](https://github.com/bgw/uklad/pulls) with the title `Uklad 1 compatibility: <name of your project>`
+- [ ] Open a [pull request](https://github.com/bgw/uklad/pulls) titled `Uklad 1 compatibility: <name of your project>`.

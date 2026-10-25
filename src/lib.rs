@@ -218,8 +218,8 @@ pub fn decode_from_reader<D: de::Decode<()>, R: Reader, C: Config>(
     D::decode(&mut decoder)
 }
 
-// TODO: Currently our doctests fail when trying to include the specs because the specs depend on `derive` and `alloc`.
-// But we want to have the specs in the docs always
+// The spec is included in the docs only when `derive` and `alloc` are enabled,
+// because its examples depend on both features.
 #[cfg(all(feature = "alloc", feature = "derive", doc))]
 pub mod spec {
     #![doc = include_str!("../docs/spec.md")]
@@ -230,8 +230,8 @@ pub mod migration_guide {
     #![doc = include_str!("../docs/migration_guide.md")]
 }
 
-// Test the examples in readme.md
+// Test the examples in README.md
 #[cfg(all(feature = "alloc", feature = "derive", doctest))]
 mod readme {
-    #![doc = include_str!("../readme.md")]
+    #![doc = include_str!("../README.md")]
 }

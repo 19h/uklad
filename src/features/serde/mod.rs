@@ -41,7 +41,7 @@
 //!
 //! # Known issues
 //!
-//! Because uklad is a format without meta data, there are several known issues with serde's attributes. Please do not use any of the following attributes if you plan on using uklad, or use uklad's own `derive` macros.
+//! Because uklad is a format without metadata, several of serde's attributes are unsupported. Avoid the following attributes with uklad, or use uklad's own `derive` macros instead.
 //! - `#[serde(flatten)]`
 //! - `#[serde(skip)]`
 //! - `#[serde(skip_deserializing)]`
@@ -50,17 +50,16 @@
 //! - `#[serde(tag = "...")]`
 //! - `#[serde(untagged)]`
 //!
-//! **Using any of the above attributes can and will cause issues with uklad and will result in lost data**. Consider using uklad's own derive macro instead.
+//! **These attributes are not supported and can cause data loss.** Use uklad's own derive macros instead.
 //!
-//! # Why move away from serde?
+//! # Relationship with serde
 //!
-//! Serde is a great library, but it has some issues that makes us want to be decoupled from serde:
-//! - The issues documented above with attributes.
-//! - Serde has chosen to not have a MSRV ([source](https://github.com/serde-rs/serde/pull/2257)). We think MSRV is important, uklad 1 still compiles with rust 1.18.
-//! - Before serde we had rustc-serializer. Serde has more than replaced rustc-serializer, but we can imagine a future where serde is replaced by something else.
-//! - We believe that less dependencies is better, and that you should be able to choose your own dependencies. If you disable all features, uklad 2 only has 1 dependency. ([`unty`], a micro crate we manage ourselves)
+//! Serde remains fully supported; it is an optional dependency so that projects can choose their own dependency set. With all features disabled, uklad 2 has a single dependency ([`unty`]).
 //!
-//! **note:** just because we're making serde an optional dependency, it does not mean we're dropping support for serde. Serde will still be fully supported, we're just giving you the option to not use it.
+//! Reasons to prefer uklad's own derive macros:
+//! - The attribute limitations documented above.
+//! - Serde does not define an MSRV ([source](https://github.com/serde-rs/serde/pull/2257)); this crate treats its MSRV as a compatibility guarantee.
+//! - Fewer dependencies means a smaller supply-chain surface.
 //!
 //! [Decode]: ../de/trait.Decode.html
 //! [Encode]: ../enc/trait.Encode.html
