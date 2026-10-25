@@ -145,8 +145,8 @@ fn test_serialize_deserialize_owned_data() {
 mod derive {
     use serde_derive::{Deserialize, Serialize};
     use uklad::{
-        serde::{BorrowCompat, Compat},
         Decode, Encode,
+        serde::{BorrowCompat, Compat},
     };
 
     #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]

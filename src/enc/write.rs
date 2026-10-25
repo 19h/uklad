@@ -1,82 +1,76 @@
-//! This module contains writer-based structs and traits.
-//!
-//! Because `std::io::Write` is only limited to `std` and not `core`, we provide our own [Writer].
+//! Byte-oriented output used by the encoder.
 
 use crate::error::EncodeError;
 
-/// Trait that indicates that a struct can be used as a destination to encode data too. This is used by [Encode]
+/// A destination for encoded bytes.
 ///
-/// [Encode]: ../trait.Encode.html
+/// Implementations must either write the entire slice or return an error.
 pub trait Writer {
-    /// Write `bytes` to the underlying writer. Exactly `bytes.len()` bytes must be written, or else an error should be returned.
+    /// Writes all of `bytes`.
     fn write(&mut self, bytes: &[u8]) -> Result<(), EncodeError>;
 }
 
-impl<T: Writer> Writer for &mut T {
+impl<T: Writer + ?Sized> Writer for &mut T {
     #[inline]
     fn write(&mut self, bytes: &[u8]) -> Result<(), EncodeError> {
         (**self).write(bytes)
     }
 }
 
-/// A helper struct that implements `Writer` for a `&[u8]` slice.
+/// A writer that fills a pre-allocated slice.
 ///
 /// ```
-/// use uklad::enc::write::{Writer, SliceWriter};
+/// use uklad::enc::write::{SliceWriter, Writer};
 ///
-/// let destination = &mut [0u8; 100];
-/// let mut writer = SliceWriter::new(destination);
-/// writer.write(&[1, 2, 3, 4, 5]).unwrap();
+/// let mut buffer = [0u8; 4];
+/// let mut writer = SliceWriter::new(&mut buffer);
+/// writer.write(&[1, 2, 3]).unwrap();
 ///
-/// assert_eq!(writer.bytes_written(), 5);
-/// assert_eq!(destination[0..6], [1, 2, 3, 4, 5, 0]);
+/// assert_eq!(writer.bytes_written(), 3);
+/// assert_eq!(buffer, [1, 2, 3, 0]);
 /// ```
-pub struct SliceWriter<'storage> {
-    slice: &'storage mut [u8],
-    original_length: usize,
+pub struct SliceWriter<'a> {
+    slice: &'a mut [u8],
+    written: usize,
 }
 
-impl<'storage> SliceWriter<'storage> {
-    /// Create a new instance of `SliceWriter` with the given byte array.
-    pub fn new(bytes: &'storage mut [u8]) -> SliceWriter<'storage> {
-        let original = bytes.len();
-        SliceWriter {
-            slice: bytes,
-            original_length: original,
-        }
+impl<'a> SliceWriter<'a> {
+    /// Creates a writer over `slice`.
+    pub fn new(slice: &'a mut [u8]) -> Self {
+        Self { slice, written: 0 }
     }
 
-    /// Return the amount of bytes written so far.
-    pub fn bytes_written(&self) -> usize {
-        self.original_length - self.slice.len()
+    /// Returns the number of bytes written.
+    pub const fn bytes_written(&self) -> usize {
+        self.written
     }
 }
 
 impl Writer for SliceWriter<'_> {
-    #[inline(always)]
+    #[inline]
     fn write(&mut self, bytes: &[u8]) -> Result<(), EncodeError> {
-        if bytes.len() > self.slice.len() {
+        let remaining = self.slice.len() - self.written;
+        if bytes.len() > remaining {
             return Err(EncodeError::UnexpectedEnd);
         }
-        let (a, b) = core::mem::take(&mut self.slice).split_at_mut(bytes.len());
-        a.copy_from_slice(bytes);
-        self.slice = b;
-
+        let end = self.written + bytes.len();
+        self.slice[self.written..end].copy_from_slice(bytes);
+        self.written = end;
         Ok(())
     }
 }
 
-/// A writer that counts how many bytes were written. This is useful for e.g. pre-allocating buffers before writing to them.
+/// A writer that only counts bytes.
 #[derive(Default)]
 pub struct SizeWriter {
-    /// the amount of bytes that were written so far
+    /// The number of bytes written so far.
     pub bytes_written: usize,
 }
+
 impl Writer for SizeWriter {
-    #[inline(always)]
+    #[inline]
     fn write(&mut self, bytes: &[u8]) -> Result<(), EncodeError> {
         self.bytes_written += bytes.len();
-
         Ok(())
     }
 }

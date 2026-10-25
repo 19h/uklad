@@ -1,23 +1,18 @@
 [package]
 name = "uklad_derive"
-version = "2.0.1" # remember to update uklad
-authors = [
-    "Zoey Riordan <zoey@dos.cafe>",
-    "Victor Koenders <bincode@trangar.com>",
-]
-edition = "2021"
-rust-version = "1.85.0"
-
+version = "2.0.1"
+edition = "2024"
+rust-version = "1.85"
+description = "Derive macros for uklad"
 repository = "https://github.com/bgw/uklad"
 documentation = "https://docs.rs/uklad_derive"
-readme = "./readme.md"
 categories = ["encoding", "network-programming"]
 keywords = ["binary", "encode", "decode", "serialize", "deserialize"]
-license = "MIT"
-description = "Implementation of #[derive(Encode, Decode)] for uklad"
 
 [lib]
 proc-macro = true
 
 [dependencies]
-virtue = "0.0.18"
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["full"] }

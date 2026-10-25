@@ -1,103 +1,85 @@
-//! Encoder-based structs and traits.
-
-mod encoder;
-mod impl_tuples;
-mod impls;
-
-use self::write::Writer;
-use crate::{config::Config, error::EncodeError, utils::Sealed};
+//! Encoding traits and types.
 
 pub mod write;
 
-pub use self::encoder::EncoderImpl;
+mod compound;
+mod encoder;
+mod primitives;
+mod tuples;
 
-/// Any source that can be encoded. This trait should be implemented for all types that you want to be able to use with any of the `encode_with` methods.
+pub use encoder::EncoderImpl;
+
+use crate::{config::Config, error::EncodeError};
+
+#[doc(hidden)]
+pub trait Sealed {}
+
+impl<T: Sealed + ?Sized> Sealed for &mut T {}
+
+/// A value that can be encoded.
 ///
-/// This trait will be automatically implemented if you enable the `derive` feature and add `#[derive(uklad::Encode)]` to your trait.
-///
-/// # Implementing this trait manually
-///
-/// If you want to implement this trait for your type, the easiest way is to add a `#[derive(uklad::Encode)]`, build and check your `target/generated/uklad/` folder. This should generate a `<Struct name>_Encode.rs` file.
-///
-/// For this struct:
+/// Implement this trait directly, or derive it with the `derive` feature:
 ///
 /// ```
-/// struct Entity {
-///     pub x: f32,
-///     pub y: f32,
+/// # #[cfg(feature = "derive")]
+/// # mod example {
+/// #[derive(uklad::Encode)]
+/// struct Point {
+///     x: i32,
+///     y: i32,
 /// }
-/// ```
-/// It will look something like:
-///
-/// ```
-/// # struct Entity {
-/// #     pub x: f32,
-/// #     pub y: f32,
 /// # }
-/// impl uklad::Encode for Entity {
-///     fn encode<E: uklad::enc::Encoder>(
-///         &self,
-///         encoder: &mut E,
-///     ) -> core::result::Result<(), uklad::error::EncodeError> {
-///         uklad::Encode::encode(&self.x, encoder)?;
-///         uklad::Encode::encode(&self.y, encoder)?;
-///         Ok(())
-///     }
-/// }
 /// ```
-///
-/// From here you can add/remove fields, or add custom logic.
 pub trait Encode {
-    /// Encode a given type.
+    /// Encodes `self` with `encoder`.
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError>;
 }
 
-/// Helper trait to encode basic types into.
+/// The destination of encoded values.
+///
+/// This trait is implemented by [`EncoderImpl`] and is not intended to be
+/// implemented directly.
 pub trait Encoder: Sealed {
-    /// The concrete [Writer] type
-    type W: Writer;
+    /// The writer used by this encoder.
+    type W: write::Writer;
 
-    /// The concrete [Config] type
+    /// The configuration used by this encoder.
     type C: Config;
 
-    /// Returns a mutable reference to the writer
+    /// Returns the underlying writer.
     fn writer(&mut self) -> &mut Self::W;
 
-    /// Returns a reference to the config
+    /// Returns the configuration.
     fn config(&self) -> &Self::C;
 }
 
-impl<T> Encoder for &mut T
-where
-    T: Encoder,
-{
+impl<T: Encoder + ?Sized> Encoder for &mut T {
     type W = T::W;
-
     type C = T::C;
 
+    #[inline]
     fn writer(&mut self) -> &mut Self::W {
-        T::writer(self)
+        (**self).writer()
     }
 
+    #[inline]
     fn config(&self) -> &Self::C {
-        T::config(self)
+        (**self).config()
     }
 }
 
-/// Encode the variant of the given option. Will not encode the option itself.
 #[inline]
-pub(crate) fn encode_option_variant<E: Encoder, T>(
+pub(crate) fn encode_option<E: Encoder>(
     encoder: &mut E,
-    value: &Option<T>,
+    value: &Option<()>,
 ) -> Result<(), EncodeError> {
     match value {
         None => 0u8.encode(encoder),
-        Some(_) => 1u8.encode(encoder),
+        Some(()) => 1u8.encode(encoder),
     }
 }
 
-/// Encodes the length of any slice, container, etc into the given encoder
 #[inline]
-pub(crate) fn encode_slice_len<E: Encoder>(encoder: &mut E, len: usize) -> Result<(), EncodeError> {
+pub(crate) fn encode_len<E: Encoder>(encoder: &mut E, len: usize) -> Result<(), EncodeError> {
     (len as u64).encode(encoder)
 }

@@ -1,105 +1,33 @@
-mod attribute;
-mod derive_enum;
-mod derive_struct;
+//! Derive macros for the `uklad` crate.
+//!
+//! The macros implement `Encode`, `Decode`, and `BorrowDecode`. Field and
+//! container options are provided through `#[uklad(...)]` attributes.
 
-use attribute::ContainerAttributes;
-use virtue::prelude::*;
+mod attrs;
+mod expand;
 
+use proc_macro::TokenStream;
+
+/// Derives `uklad::Encode`.
 #[proc_macro_derive(Encode, attributes(uklad))]
-pub fn derive_encode(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    derive_encode_inner(input).unwrap_or_else(|e| e.into_token_stream())
+pub fn derive_encode(input: TokenStream) -> TokenStream {
+    expand::encode(syn::parse_macro_input!(input))
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
 
-fn derive_encode_inner(input: TokenStream) -> Result<TokenStream> {
-    let parse = Parse::new(input)?;
-    let (mut generator, attributes, body) = parse.into_generator();
-    let attributes = attributes
-        .get_attribute::<ContainerAttributes>()?
-        .unwrap_or_default();
-
-    match body {
-        Body::Struct(body) => {
-            derive_struct::DeriveStruct {
-                fields: body.fields,
-                attributes,
-            }
-            .generate_encode(&mut generator)?;
-        }
-        Body::Enum(body) => {
-            derive_enum::DeriveEnum {
-                variants: body.variants,
-                attributes,
-            }
-            .generate_encode(&mut generator)?;
-        }
-    }
-
-    generator.export_to_file("uklad", "Encode");
-    generator.finish()
-}
-
+/// Derives `uklad::Decode` and a matching `uklad::BorrowDecode` implementation.
 #[proc_macro_derive(Decode, attributes(uklad))]
-pub fn derive_decode(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    derive_decode_inner(input).unwrap_or_else(|e| e.into_token_stream())
+pub fn derive_decode(input: TokenStream) -> TokenStream {
+    expand::decode(syn::parse_macro_input!(input))
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
 
-fn derive_decode_inner(input: TokenStream) -> Result<TokenStream> {
-    let parse = Parse::new(input)?;
-    let (mut generator, attributes, body) = parse.into_generator();
-    let attributes = attributes
-        .get_attribute::<ContainerAttributes>()?
-        .unwrap_or_default();
-
-    match body {
-        Body::Struct(body) => {
-            derive_struct::DeriveStruct {
-                fields: body.fields,
-                attributes,
-            }
-            .generate_decode(&mut generator)?;
-        }
-        Body::Enum(body) => {
-            derive_enum::DeriveEnum {
-                variants: body.variants,
-                attributes,
-            }
-            .generate_decode(&mut generator)?;
-        }
-    }
-
-    generator.export_to_file("uklad", "Decode");
-    generator.finish()
-}
-
+/// Derives `uklad::BorrowDecode` for a type that contains borrowed data.
 #[proc_macro_derive(BorrowDecode, attributes(uklad))]
-pub fn derive_borrow_decode(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    derive_borrow_decode_inner(input).unwrap_or_else(|e| e.into_token_stream())
-}
-
-fn derive_borrow_decode_inner(input: TokenStream) -> Result<TokenStream> {
-    let parse = Parse::new(input)?;
-    let (mut generator, attributes, body) = parse.into_generator();
-    let attributes = attributes
-        .get_attribute::<ContainerAttributes>()?
-        .unwrap_or_default();
-
-    match body {
-        Body::Struct(body) => {
-            derive_struct::DeriveStruct {
-                fields: body.fields,
-                attributes,
-            }
-            .generate_borrow_decode(&mut generator)?;
-        }
-        Body::Enum(body) => {
-            derive_enum::DeriveEnum {
-                variants: body.variants,
-                attributes,
-            }
-            .generate_borrow_decode(&mut generator)?;
-        }
-    }
-
-    generator.export_to_file("uklad", "BorrowDecode");
-    generator.finish()
+pub fn derive_borrow_decode(input: TokenStream) -> TokenStream {
+    expand::borrow_decode(syn::parse_macro_input!(input))
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }

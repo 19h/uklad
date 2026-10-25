@@ -1,42 +1,37 @@
 use super::{
+    BorrowDecoder, Decoder, Sealed,
     read::{BorrowReader, Reader},
-    BorrowDecoder, Decoder,
 };
-use crate::{config::Config, error::DecodeError, utils::Sealed};
+use crate::{config::Config, error::DecodeError};
 
-/// A Decoder that reads bytes from a given reader `R`.
+/// A decoder that reads from a [`Reader`].
 ///
-/// This struct should rarely be used.
-/// In most cases, prefer any of the `decode` functions.
-///
-/// The ByteOrder that is chosen will impact the endianness that
-/// is used to read integers out of the reader.
-///
-/// ```
-/// # let slice: &[u8] = &[0, 0, 0, 0];
-/// # let some_reader = uklad::de::read::SliceReader::new(slice);
-/// use uklad::de::{DecoderImpl, Decode};
-/// let mut context = ();
-/// let mut decoder = DecoderImpl::new(some_reader, uklad::config::standard(), &mut context);
-/// // this u32 can be any Decode
-/// let value = u32::decode(&mut decoder).unwrap();
-/// ```
+/// Most code should use the top-level `decode_*` functions instead.
 pub struct DecoderImpl<R, C: Config, Context> {
     reader: R,
     config: C,
-    bytes_read: usize,
+    claimed: usize,
     context: Context,
 }
 
 impl<R: Reader, C: Config, Context> DecoderImpl<R, C, Context> {
-    /// Construct a new Decoder
-    pub fn new(reader: R, config: C, context: Context) -> DecoderImpl<R, C, Context> {
-        DecoderImpl {
+    /// Creates a decoder reading from `reader`.
+    pub const fn new(reader: R, config: C, context: Context) -> Self {
+        Self {
             reader,
             config,
-            bytes_read: 0,
+            claimed: 0,
             context,
         }
+    }
+
+    /// Returns the number of bytes read when the reader is a slice reader.
+    #[inline]
+    pub fn bytes_read(&self) -> usize
+    where
+        R: super::read::Position,
+    {
+        self.reader.position()
     }
 }
 
@@ -47,6 +42,7 @@ impl<'de, R: BorrowReader<'de>, C: Config, Context> BorrowDecoder<'de>
 {
     type BR = R;
 
+    #[inline]
     fn borrow_reader(&mut self) -> &mut Self::BR {
         &mut self.reader
     }
@@ -54,88 +50,89 @@ impl<'de, R: BorrowReader<'de>, C: Config, Context> BorrowDecoder<'de>
 
 impl<R: Reader, C: Config, Context> Decoder for DecoderImpl<R, C, Context> {
     type R = R;
-
     type C = C;
     type Context = Context;
 
+    #[inline]
+    fn context(&mut self) -> &mut Self::Context {
+        &mut self.context
+    }
+
+    #[inline]
     fn reader(&mut self) -> &mut Self::R {
         &mut self.reader
     }
 
+    #[inline]
     fn config(&self) -> &Self::C {
         &self.config
     }
 
     #[inline]
     fn claim_bytes_read(&mut self, n: usize) -> Result<(), DecodeError> {
-        // C::LIMIT is a const so this check should get compiled away
         if let Some(limit) = C::LIMIT {
-            // Make sure we don't accidentally overflow `bytes_read`
-            self.bytes_read = self
-                .bytes_read
+            self.claimed = self
+                .claimed
                 .checked_add(n)
                 .ok_or(DecodeError::LimitExceeded)?;
-            if self.bytes_read > limit {
-                Err(DecodeError::LimitExceeded)
-            } else {
-                Ok(())
+            if self.claimed > limit {
+                return Err(DecodeError::LimitExceeded);
             }
-        } else {
-            Ok(())
         }
+        Ok(())
     }
 
     #[inline]
     fn unclaim_bytes_read(&mut self, n: usize) {
-        // C::LIMIT is a const so this check should get compiled away
         if C::LIMIT.is_some() {
-            // We should always be claiming more than we unclaim, so this should never underflow
-            self.bytes_read -= n;
+            self.claimed -= n;
         }
-    }
-
-    fn context(&mut self) -> &mut Self::Context {
-        &mut self.context
     }
 }
 
+/// A decoder wrapper that supplies a context.
 pub struct WithContext<'a, D: ?Sized, C> {
     pub(crate) decoder: &'a mut D,
     pub(crate) context: C,
 }
 
-impl<C, D: Decoder + ?Sized> Sealed for WithContext<'_, D, C> {}
+impl<D: Decoder + ?Sized, C> Sealed for WithContext<'_, D, C> {}
 
-impl<Context, D: Decoder + ?Sized> Decoder for WithContext<'_, D, Context> {
+impl<D: Decoder + ?Sized, Context> Decoder for WithContext<'_, D, Context> {
     type R = D::R;
-
     type C = D::C;
-
     type Context = Context;
 
+    #[inline]
     fn context(&mut self) -> &mut Self::Context {
         &mut self.context
     }
 
+    #[inline]
     fn reader(&mut self) -> &mut Self::R {
         self.decoder.reader()
     }
 
+    #[inline]
     fn config(&self) -> &Self::C {
         self.decoder.config()
     }
 
+    #[inline]
     fn claim_bytes_read(&mut self, n: usize) -> Result<(), DecodeError> {
         self.decoder.claim_bytes_read(n)
     }
 
+    #[inline]
     fn unclaim_bytes_read(&mut self, n: usize) {
         self.decoder.unclaim_bytes_read(n)
     }
 }
 
-impl<'de, C, D: BorrowDecoder<'de>> BorrowDecoder<'de> for WithContext<'_, D, C> {
+impl<'de, D: BorrowDecoder<'de>, C> BorrowDecoder<'de> for WithContext<'_, D, C> {
     type BR = D::BR;
+
+    #[inline]
     fn borrow_reader(&mut self) -> &mut Self::BR {
         self.decoder.borrow_reader()
     }

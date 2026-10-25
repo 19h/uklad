@@ -1,123 +1,39 @@
-//! Decoder-based structs and traits.
-
-mod decoder;
-mod impl_core;
-mod impl_tuples;
-mod impls;
-
-use self::{
-    decoder::WithContext,
-    read::{BorrowReader, Reader},
-};
-use crate::{
-    config::{Config, InternalLimitConfig},
-    error::DecodeError,
-    utils::Sealed,
-};
+//! Decoding traits and types.
 
 pub mod read;
 
-pub use self::decoder::DecoderImpl;
+mod compound;
+mod decoder;
+mod primitives;
+mod tuples;
 
-/// Trait that makes a type able to be decoded, akin to serde's `DeserializeOwned` trait.
+pub use decoder::{DecoderImpl, WithContext};
+
+use self::read::{BorrowReader, Reader};
+use crate::{config::Config, error::DecodeError};
+
+#[doc(hidden)]
+pub trait Sealed {}
+
+impl<T: Sealed + ?Sized> Sealed for &mut T {}
+
+/// A value that can be decoded from an owned reader.
 ///
-/// Some types may require specific contexts. For example, to decode arena-based collections, an arena allocator must be provided as a context. In these cases, the context type `Context` should be specified or bounded.
-///
-/// This trait should be implemented for types which do not have references to data in the reader. For types that contain e.g. `&str` and `&[u8]`, implement [BorrowDecode] instead.
-///
-/// Whenever you derive `Decode` for your type, the base trait `BorrowDecode` is automatically implemented.
-///
-/// This trait will be automatically implemented with unbounded `Context` if you enable the `derive` feature and add `#[derive(uklad::Decode)]` to your type. Note that if the type contains any lifetimes, `BorrowDecode` will be implemented instead.
-///
-/// # Implementing this trait manually
-///
-/// If you want to implement this trait for your type, the easiest way is to add a `#[derive(uklad::Decode)]`, build and check your `target/generated/uklad/` folder. This should generate a `<Struct name>_Decode.rs` file.
-///
-/// For this struct:
-///
-/// ```
-/// struct Entity {
-///     pub x: f32,
-///     pub y: f32,
-/// }
-/// ```
-///
-/// It will look something like:
-///
-/// ```
-/// # struct Entity {
-/// #     pub x: f32,
-/// #     pub y: f32,
-/// # }
-/// impl<Context> uklad::Decode<Context> for Entity {
-///     fn decode<D: uklad::de::Decoder<Context = Context>>(
-///         decoder: &mut D,
-///     ) -> core::result::Result<Self, uklad::error::DecodeError> {
-///         Ok(Self {
-///             x: uklad::Decode::decode(decoder)?,
-///             y: uklad::Decode::decode(decoder)?,
-///         })
-///     }
-/// }
-/// impl<'de, Context> uklad::BorrowDecode<'de, Context> for Entity {
-///     fn borrow_decode<D: uklad::de::BorrowDecoder<'de, Context = Context>>(
-///         decoder: &mut D,
-///     ) -> core::result::Result<Self, uklad::error::DecodeError> {
-///         Ok(Self {
-///             x: uklad::BorrowDecode::borrow_decode(decoder)?,
-///             y: uklad::BorrowDecode::borrow_decode(decoder)?,
-///         })
-///     }
-/// }
-/// ```
-///
-/// From here you can add/remove fields, or add custom logic.
-///
-/// To get specific integer types, you can use:
-/// ```
-/// # struct Foo;
-/// # impl<Context> uklad::Decode<Context> for Foo {
-/// #     fn decode<D: uklad::de::Decoder<Context = Context>>(
-/// #         decoder: &mut D,
-/// #     ) -> core::result::Result<Self, uklad::error::DecodeError> {
-/// let x: u8 = uklad::Decode::<Context>::decode(decoder)?;
-/// let x = <u8 as uklad::Decode::<Context>>::decode(decoder)?;
-/// #         Ok(Foo)
-/// #     }
-/// # }
-/// # uklad::impl_borrow_decode!(Foo);
-/// ```
-///
-/// You can use `Context` to require contexts for decoding a type:
-/// ```
-/// # /// # use bumpalo::Bump;
-/// use uklad::de::Decoder;
-/// use uklad::error::DecodeError;
-/// struct BytesInArena<'a>(bumpalo::collections::Vec<'a, u8>);
-/// impl<'a> uklad::Decode<&'a bumpalo::Bump> for BytesInArena<'a> {
-/// fn decode<D: Decoder>(decoder: &mut D) -> Result<Self, DecodeError> {
-///         todo!()
-///     }
-/// # }
-/// ```
+/// Types containing borrowed data should implement [`BorrowDecode`] instead.
 pub trait Decode<Context>: Sized {
-    /// Attempt to decode this type with the given [Decode].
+    /// Decodes a value with `decoder`.
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError>;
 }
 
-/// Trait that makes a type able to be decoded, akin to serde's `Deserialize` trait.
-///
-/// This trait should be implemented for types that contain borrowed data, like `&str` and `&[u8]`. If your type does not have borrowed data, consider implementing [Decode] instead.
-///
-/// This trait will be automatically implemented if you enable the `derive` feature and add `#[derive(uklad::Decode)]` to a type with a lifetime.
+/// A value that can be decoded with borrowed data.
 pub trait BorrowDecode<'de, Context>: Sized {
-    /// Attempt to decode this type with the given [BorrowDecode].
+    /// Decodes a value with `decoder`.
     fn borrow_decode<D: BorrowDecoder<'de, Context = Context>>(
         decoder: &mut D,
     ) -> Result<Self, DecodeError>;
 }
 
-/// Helper macro to implement `BorrowDecode` for any type that implements `Decode`.
+/// Implements [`BorrowDecode`] for a type that implements [`Decode`].
 #[macro_export]
 macro_rules! impl_borrow_decode {
     ($ty:ty $(, $($params:tt)*)?) => {
@@ -125,7 +41,8 @@ macro_rules! impl_borrow_decode {
     };
 }
 
-/// Helper macro to implement `BorrowDecode` for any type that implements `Decode`.
+/// Implements [`BorrowDecode`] with a specific context for a type that
+/// implements [`Decode`].
 #[macro_export]
 macro_rules! impl_borrow_decode_with_context {
     ($ty:ty, $context:ty $(, $($params:tt)*)?) => {
@@ -133,50 +50,51 @@ macro_rules! impl_borrow_decode_with_context {
             fn borrow_decode<D: $crate::de::BorrowDecoder<'de, Context = $context>>(
                 decoder: &mut D,
             ) -> core::result::Result<Self, $crate::error::DecodeError> {
-                $crate::Decode::decode(decoder)
+                <Self as $crate::Decode<$context>>::decode(decoder)
             }
         }
     };
 }
 
-/// Any source that can decode basic types. This type is most notably implemented for [Decoder].
+/// The source of encoded bytes.
+///
+/// This trait is implemented by [`read::SliceReader`] and is not intended to be
+/// implemented by users.
 pub trait Decoder: Sealed {
-    /// The concrete [Reader] type
+    /// The reader used by this decoder.
     type R: Reader;
 
-    /// The concrete [Config] type
+    /// The configuration used by this decoder.
     type C: Config;
 
-    /// The decoding context type
+    /// The decoding context.
     type Context;
 
-    /// Returns the decoding context
+    /// Returns the decoding context.
     fn context(&mut self) -> &mut Self::Context;
 
-    /// Wraps decoder with a context
-    fn with_context<C>(&mut self, context: C) -> WithContext<Self, C> {
+    /// Returns a decoder that uses `context`.
+    fn with_context<C>(&mut self, context: C) -> WithContext<'_, Self, C> {
         WithContext {
             decoder: self,
             context,
         }
     }
 
-    /// Returns a mutable reference to the reader
+    /// Returns the underlying reader.
     fn reader(&mut self) -> &mut Self::R;
 
-    /// Returns a reference to the config
+    /// Returns the configuration.
     fn config(&self) -> &Self::C;
 
-    /// Claim that `n` bytes are going to be read from the decoder.
-    /// This can be used to validate `Configuration::Limit<N>()`.
+    /// Declares that `n` bytes will be read, checking the configured limit.
     fn claim_bytes_read(&mut self, n: usize) -> Result<(), DecodeError>;
 
-    /// Claim that we're going to read a container which contains `len` entries of `T`.
-    /// This will correctly handle overflowing if `len * size_of::<T>() > usize::max_value`
+    /// Declares that a container with `len` elements of `T` will be read.
     fn claim_container_read<T>(&mut self, len: usize) -> Result<(), DecodeError> {
-        if <Self::C as InternalLimitConfig>::LIMIT.is_some() {
+        if Self::C::LIMIT.is_some() {
             match len.checked_mul(core::mem::size_of::<T>()) {
-                Some(val) => self.claim_bytes_read(val),
+                Some(bytes) => self.claim_bytes_read(bytes),
                 None => Err(DecodeError::LimitExceeded),
             }
         } else {
@@ -184,145 +102,82 @@ pub trait Decoder: Sealed {
         }
     }
 
-    /// Notify the decoder that `n` bytes are being reclaimed.
+    /// Releases a previously claimed byte count.
     ///
-    /// When decoding container types, a typical implementation would claim to read `len * size_of::<T>()` bytes.
-    /// This is to ensure that uklad won't allocate several GB of memory while constructing the container.
-    ///
-    /// Because the implementation claims `len * size_of::<T>()`, but then has to decode each `T`, this would be marked
-    /// as double. This function allows us to un-claim each `T` that gets decoded.
-    ///
-    /// We cannot check if `len * size_of::<T>()` is valid without claiming it, because this would mean that if you have
-    /// a nested container (e.g. `Vec<Vec<T>>`), it does not know how much memory is already claimed, and could easily
-    /// allocate much more than the user intends.
-    /// ```
-    /// # use uklad::de::{Decode, Decoder};
-    /// # use uklad::error::DecodeError;
-    /// # struct Container<T>(Vec<T>);
-    /// # impl<T> Container<T> {
-    /// #     fn with_capacity(cap: usize) -> Self {
-    /// #         Self(Vec::with_capacity(cap))
-    /// #     }
-    /// #     
-    /// #     fn push(&mut self, t: T) {
-    /// #         self.0.push(t);
-    /// #     }
-    /// # }
-    /// impl<Context, T: Decode<Context>> Decode<Context> for Container<T> {
-    ///     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-    ///         let len = u64::decode(decoder)?;
-    ///         let len: usize = len.try_into().map_err(|_| DecodeError::OutsideUsizeRange(len))?;
-    ///         // Make sure we don't allocate too much memory
-    ///         decoder.claim_bytes_read(len * core::mem::size_of::<T>());
-    ///
-    ///         let mut result = Container::with_capacity(len);
-    ///         for _ in 0..len {
-    ///             // un-claim the memory
-    ///             decoder.unclaim_bytes_read(core::mem::size_of::<T>());
-    ///             result.push(T::decode(decoder)?)
-    ///         }
-    ///         Ok(result)
-    ///     }
-    /// }
-    /// impl<'de, Context, T: uklad::BorrowDecode<'de, Context>> uklad::BorrowDecode<'de, Context> for Container<T> {
-    ///     fn borrow_decode<D: uklad::de::BorrowDecoder<'de, Context = Context>>(
-    ///         decoder: &mut D,
-    ///     ) -> core::result::Result<Self, uklad::error::DecodeError> {
-    ///         let len = u64::borrow_decode(decoder)?;
-    ///         let len: usize = len.try_into().map_err(|_| DecodeError::OutsideUsizeRange(len))?;
-    ///         // Make sure we don't allocate too much memory
-    ///         decoder.claim_bytes_read(len * core::mem::size_of::<T>());
-    ///
-    ///         let mut result = Container::with_capacity(len);
-    ///         for _ in 0..len {
-    ///             // un-claim the memory
-    ///             decoder.unclaim_bytes_read(core::mem::size_of::<T>());
-    ///             result.push(T::borrow_decode(decoder)?)
-    ///         }
-    ///         Ok(result)
-    ///     }
-    /// }
-    /// ```
+    /// Container implementations claim the space for their whole contents up
+    /// front, then release the space for each element as it is decoded.
     fn unclaim_bytes_read(&mut self, n: usize);
 }
 
-/// Any source that can decode basic types. This type is most notably implemented for [Decoder].
-///
-/// This is an extension of [Decode] that can also return borrowed data.
+/// A [`Decoder`] that can also return borrowed data.
 pub trait BorrowDecoder<'de>: Decoder {
-    /// The concrete [BorrowReader] type
+    /// The borrow-capable reader used by this decoder.
     type BR: BorrowReader<'de>;
 
-    /// Returns a mutable reference to the borrow reader
+    /// Returns the borrow-capable reader.
     fn borrow_reader(&mut self) -> &mut Self::BR;
 }
 
-impl<T> Decoder for &mut T
-where
-    T: Decoder,
-{
+impl<T: Decoder + ?Sized> Decoder for &mut T {
     type R = T::R;
-
     type C = T::C;
-
     type Context = T::Context;
 
-    fn reader(&mut self) -> &mut Self::R {
-        T::reader(self)
+    #[inline]
+    fn context(&mut self) -> &mut Self::Context {
+        (**self).context()
     }
 
+    #[inline]
+    fn reader(&mut self) -> &mut Self::R {
+        (**self).reader()
+    }
+
+    #[inline]
     fn config(&self) -> &Self::C {
-        T::config(self)
+        (**self).config()
     }
 
     #[inline]
     fn claim_bytes_read(&mut self, n: usize) -> Result<(), DecodeError> {
-        T::claim_bytes_read(self, n)
+        (**self).claim_bytes_read(n)
     }
 
     #[inline]
     fn unclaim_bytes_read(&mut self, n: usize) {
-        T::unclaim_bytes_read(self, n)
-    }
-
-    fn context(&mut self) -> &mut Self::Context {
-        T::context(self)
+        (**self).unclaim_bytes_read(n)
     }
 }
 
-impl<'de, T> BorrowDecoder<'de> for &mut T
-where
-    T: BorrowDecoder<'de>,
-{
+impl<'de, T: BorrowDecoder<'de> + ?Sized> BorrowDecoder<'de> for &mut T {
     type BR = T::BR;
 
+    #[inline]
     fn borrow_reader(&mut self) -> &mut Self::BR {
-        T::borrow_reader(self)
+        (**self).borrow_reader()
     }
 }
 
-/// Decodes only the option variant from the decoder. Will not read any more data than that.
 #[inline]
 pub(crate) fn decode_option_variant<D: Decoder>(
     decoder: &mut D,
     type_name: &'static str,
 ) -> Result<Option<()>, DecodeError> {
-    let is_some = u8::decode(decoder)?;
-    match is_some {
+    match u8::decode(decoder)? {
         0 => Ok(None),
         1 => Ok(Some(())),
-        x => Err(DecodeError::UnexpectedVariant {
-            found: x as u32,
-            allowed: &crate::error::AllowedEnumVariants::Range { max: 1, min: 0 },
+        found => Err(DecodeError::UnexpectedVariant {
+            found: found as u32,
+            allowed: &crate::error::AllowedEnumVariants::Range { min: 0, max: 1 },
             type_name,
         }),
     }
 }
 
-/// Decodes the length of any slice, container, etc from the decoder
 #[inline]
 pub(crate) fn decode_slice_len<D: Decoder>(decoder: &mut D) -> Result<usize, DecodeError> {
-    let v = u64::decode(decoder)?;
-
-    v.try_into().map_err(|_| DecodeError::OutsideUsizeRange(v))
+    let value = u64::decode(decoder)?;
+    value
+        .try_into()
+        .map_err(|_| DecodeError::OutsideUsizeRange(value))
 }

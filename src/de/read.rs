@@ -1,40 +1,28 @@
-//! This module contains reader-based structs and traits.
+//! Byte sources used by the decoder.
 //!
-//! Because `std::io::Read` is only limited to `std` and not `core`, we provide 2 alternative readers.
-//!
-//! [Reader] is a reader for sources that do not own their data. It is assumed that the reader's data is dropped after the `read` method is called. This reader is incapable of reading borrowed data, like `&str` and `&[u8]`.
-//!
-//! [BorrowReader] is an extension of `Reader` that also allows returning borrowed data. A `BorrowReader` allows reading `&str` and `&[u8]`.
-//!
-//! Specifically the `Reader` trait is used by [Decode] and the `BorrowReader` trait is used by `[BorrowDecode]`.
-//!
-//! [Decode]: ../trait.Decode.html
-//! [BorrowDecode]: ../trait.BorrowDecode.html
+//! [`Reader`] reads owned data. [`BorrowReader`] additionally supports returning
+//! slices borrowed from the input.
 
 use crate::error::DecodeError;
 
-/// A reader for owned data. See the module documentation for more information.
+/// A source of encoded bytes.
 pub trait Reader {
-    /// Fill the given `bytes` argument with values. Exactly the length of the given slice must be filled, or else an error must be returned.
+    /// Fills `bytes` entirely, or returns an error.
     fn read(&mut self, bytes: &mut [u8]) -> Result<(), DecodeError>;
 
-    /// If this reader wraps a buffer of any kind, this function lets callers access contents of
-    /// the buffer without passing data through a buffer first.
+    /// Returns up to `n` bytes without consuming them, if the reader supports
+    /// peeking.
     #[inline]
-    fn peek_read(&mut self, _: usize) -> Option<&[u8]> {
+    fn peek_read(&mut self, _n: usize) -> Option<&[u8]> {
         None
     }
 
-    /// If an implementation of `peek_read` is provided, an implementation of this function
-    /// must be provided so that subsequent reads or peek-reads do not return the same bytes
+    /// Consumes `n` bytes previously observed with [`Reader::peek_read`].
     #[inline]
-    fn consume(&mut self, _: usize) {}
+    fn consume(&mut self, _n: usize) {}
 }
 
-impl<T> Reader for &mut T
-where
-    T: Reader,
-{
+impl<T: Reader + ?Sized> Reader for &mut T {
     #[inline]
     fn read(&mut self, bytes: &mut [u8]) -> Result<(), DecodeError> {
         (**self).read(bytes)
@@ -47,47 +35,60 @@ where
 
     #[inline]
     fn consume(&mut self, n: usize) {
-        (*self).consume(n)
+        (**self).consume(n);
     }
 }
 
-/// A reader for borrowed data. Implementers of this must also implement the [Reader] trait. See the module documentation for more information.
+/// A reader that can return slices borrowed from its input.
 pub trait BorrowReader<'storage>: Reader {
-    /// Read exactly `length` bytes and return a slice to this data. If not enough bytes could be read, an error should be returned.
-    ///
-    /// *note*: Exactly `length` bytes must be returned. If less bytes are returned, uklad may panic. If more bytes are returned, the excess bytes may be discarded.
+    /// Returns exactly `length` bytes and advances the reader.
     fn take_bytes(&mut self, length: usize) -> Result<&'storage [u8], DecodeError>;
 }
 
-/// A reader type for `&[u8]` slices. Implements both [Reader] and [BorrowReader], and thus can be used for borrowed data.
-pub struct SliceReader<'storage> {
-    pub(crate) slice: &'storage [u8],
+#[doc(hidden)]
+pub trait Position {
+    fn position(&self) -> usize;
 }
 
-impl<'storage> SliceReader<'storage> {
-    /// Constructs a slice reader
-    pub const fn new(bytes: &'storage [u8]) -> SliceReader<'storage> {
-        SliceReader { slice: bytes }
+/// A reader over a byte slice.
+pub struct SliceReader<'a> {
+    pub(crate) slice: &'a [u8],
+    original_len: usize,
+}
+
+impl<'a> SliceReader<'a> {
+    /// Creates a reader over `slice`.
+    pub const fn new(slice: &'a [u8]) -> Self {
+        Self {
+            slice,
+            original_len: slice.len(),
+        }
     }
 }
 
-impl<'storage> Reader for SliceReader<'storage> {
-    #[inline(always)]
+impl Position for SliceReader<'_> {
+    #[inline]
+    fn position(&self) -> usize {
+        self.original_len - self.slice.len()
+    }
+}
+
+impl Reader for SliceReader<'_> {
+    #[inline]
     fn read(&mut self, bytes: &mut [u8]) -> Result<(), DecodeError> {
         if bytes.len() > self.slice.len() {
             return Err(DecodeError::UnexpectedEnd {
                 additional: bytes.len() - self.slice.len(),
             });
         }
-        let (read_slice, remaining) = self.slice.split_at(bytes.len());
-        bytes.copy_from_slice(read_slice);
-        self.slice = remaining;
-
+        let (head, tail) = self.slice.split_at(bytes.len());
+        bytes.copy_from_slice(head);
+        self.slice = tail;
         Ok(())
     }
 
     #[inline]
-    fn peek_read(&mut self, n: usize) -> Option<&'storage [u8]> {
+    fn peek_read(&mut self, n: usize) -> Option<&[u8]> {
         self.slice.get(..n)
     }
 
@@ -97,16 +98,16 @@ impl<'storage> Reader for SliceReader<'storage> {
     }
 }
 
-impl<'storage> BorrowReader<'storage> for SliceReader<'storage> {
-    #[inline(always)]
-    fn take_bytes(&mut self, length: usize) -> Result<&'storage [u8], DecodeError> {
+impl<'a> BorrowReader<'a> for SliceReader<'a> {
+    #[inline]
+    fn take_bytes(&mut self, length: usize) -> Result<&'a [u8], DecodeError> {
         if length > self.slice.len() {
             return Err(DecodeError::UnexpectedEnd {
                 additional: length - self.slice.len(),
             });
         }
-        let (read_slice, remaining) = self.slice.split_at(length);
-        self.slice = remaining;
-        Ok(read_slice)
+        let (head, tail) = self.slice.split_at(length);
+        self.slice = tail;
+        Ok(head)
     }
 }

@@ -2,90 +2,69 @@
 #![warn(missing_docs, unused_lifetimes)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-//! Uklad is a crate for encoding and decoding using a tiny binary
-//! serialization strategy.  Using it, you can easily go from having
-//! an object in memory, quickly serialize it to bytes, and then
-//! deserialize it back just as fast!
+//! A compact binary encoder and decoder.
 //!
-//! # Serde
-//!
-//! serde support is optional. Enable the `serde` feature to use the [serde] module. See [Features](#features) for more information.
+//! The format stores values without field names or other metadata, so encoded
+//! data is typically as small as, or smaller than, the in-memory value.
 //!
 //! # Features
 //!
-//! |Name  |Default?|Affects MSRV?|Supported types for Encode/Decode|Enabled methods                                                  |Other|
-//! |------|--------|-------------|-----------------------------------------|-----------------------------------------------------------------|-----|
-//! |std   | Yes    | No          |`HashMap` and `HashSet`|`decode_from_std_read` and `encode_into_std_write`|
-//! |alloc | Yes    | No          |All common containers in alloc, like `Vec`, `String`, `Box`|`encode_to_vec`|
-//! |derive| Yes    | No          |||Enables the `BorrowDecode`, `Decode` and `Encode` derive macros|
-//! |serde | No     | Yes (MSRV reliant on serde)|`Compat` and `BorrowCompat`, which will work for all types that implement serde's traits|serde-specific encode/decode functions in the [serde] module|Note: There are several [known issues](serde/index.html#known-issues) when using serde and uklad|
+//! | Feature | Default | Description |
+//! |---------|---------|-------------|
+//! | `std`   | yes     | `std::io` readers and writers, plus standard containers. |
+//! | `alloc` | yes     | `Vec`, `String`, `Box`, and other alloc types. |
+//! | `derive`| yes     | `#[derive(Encode, Decode)]` macros. |
+//! | `serde` | no      | serde interoperability. |
 //!
-//! Atomic integer types are supported on targets that provide them; no feature is required.
+//! Atomic integer types are supported on targets that provide them.
 //!
-//! # Which functions to use
+//! # Choosing an API
 //!
-//! Uklad has a couple of pairs of functions that are used in different situations.
-//!
-//! |Situation|Encode|Decode|
-//! |---|---|---
-//! |You're working with [`fs::File`] or [`net::TcpStream`]|[`encode_into_std_write`]|[`decode_from_std_read`]|
-//! |you're working with in-memory buffers|[`encode_to_vec`]|[`decode_from_slice`]|
-//! |You want to use a custom [Reader] and [Writer]|[`encode_into_writer`]|[`decode_from_reader`]|
-//! |You're working with pre-allocated buffers or on embedded targets|[`encode_into_slice`]|[`decode_from_slice`]|
-//!
-//! **Note:** If you're using `serde`, use `uklad::serde::...` instead of `uklad::...`
+//! | Situation | Encode | Decode |
+//! |-----------|--------|--------|
+//! | Files and network streams | [`encode_into_std_write`] | [`decode_from_std_read`] |
+//! | In-memory buffers | [`encode_to_vec`] | [`decode_from_slice`] |
+//! | Custom reader or writer | [`encode_into_writer`] | [`decode_from_reader`] |
+//! | Pre-allocated buffers | [`encode_into_slice`] | [`decode_from_slice`] |
 //!
 //! # Example
 //!
-//! ```rust
-//! let mut slice = [0u8; 100];
+//! ```
+//! # #[cfg(all(feature = "derive", feature = "alloc"))]
+//! # mod example {
+//! use uklad::{Decode, Encode};
 //!
-//! // You can encode any type that implements `Encode`.
-//! // You can automatically implement this trait on custom types with the `derive` feature.
-//! let input = (
-//!     0u8,
-//!     10u32,
-//!     10000i128,
-//!     'a',
-//!     [0u8, 1u8, 2u8, 3u8]
-//! );
+//! #[derive(Encode, Decode, PartialEq, Debug)]
+//! struct Point {
+//!     x: i32,
+//!     y: i32,
+//! }
 //!
-//! let length = uklad::encode_into_slice(
-//!     input,
-//!     &mut slice,
-//!     uklad::config::standard()
-//! ).unwrap();
+//! pub fn run() {
+//!     let point = Point { x: 10, y: -4 };
+//!     let bytes = uklad::encode_to_vec(&point, uklad::config::standard()).unwrap();
+//!     let (decoded, read): (Point, usize) =
+//!         uklad::decode_from_slice(&bytes, uklad::config::standard()).unwrap();
 //!
-//! let slice = &slice[..length];
-//! println!("Bytes written: {:?}", slice);
-//!
-//! // Decoding works the same as encoding.
-//! // The trait used is `Decode`, and can also be automatically implemented with the `derive` feature.
-//! let decoded: (u8, u32, i128, char, [u8; 4]) = uklad::decode_from_slice(slice, uklad::config::standard()).unwrap().0;
-//!
-//! assert_eq!(decoded, input);
+//!     assert_eq!(decoded, point);
+//!     assert_eq!(read, bytes.len());
+//! }
+//! # }
+//! # #[cfg(all(feature = "derive", feature = "alloc"))]
+//! # example::run();
 //! ```
 //!
-//! [`fs::File`]: std::fs::File
-//! [`net::TcpStream`]: std::net::TcpStream
-//!
-
-#![doc(html_root_url = "https://docs.rs/uklad/2.0.1")]
-#![crate_name = "uklad"]
-#![crate_type = "rlib"]
+//! [`encode_into_std_write`]: https://docs.rs/uklad/latest/uklad/fn.encode_into_std_write.html
+//! [`decode_from_std_read`]: https://docs.rs/uklad/latest/uklad/fn.decode_from_std_read.html
+//! [`encode_to_vec`]: https://docs.rs/uklad/latest/uklad/fn.encode_to_vec.html
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(any(feature = "std", test))]
 extern crate std;
 
-mod atomic;
-mod features;
-pub(crate) mod utils;
+mod containers;
 pub(crate) mod varint;
-
-use de::{read::Reader, Decoder};
-use enc::write::Writer;
 
 #[cfg(any(
     feature = "alloc",
@@ -93,104 +72,89 @@ use enc::write::Writer;
     feature = "derive",
     feature = "serde"
 ))]
-pub use features::*;
+pub use containers::*;
 
 pub mod config;
-#[macro_use]
 pub mod de;
 pub mod enc;
 pub mod error;
 
+#[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
+pub mod serde;
+
 pub use de::{BorrowDecode, Decode};
 pub use enc::Encode;
 
-use config::Config;
+#[cfg(feature = "derive")]
+pub use uklad_derive::{BorrowDecode, Decode, Encode};
 
-/// Encode the given value into the given slice. Returns the amount of bytes that have been written.
-///
-/// See the [config] module for more information on configurations.
-///
-/// [config]: config/index.html
-pub fn encode_into_slice<E: enc::Encode, C: Config>(
-    val: E,
+use config::Config;
+use de::read::Reader;
+use enc::write::Writer;
+
+/// Encodes `value` into `dst` and returns the number of bytes written.
+pub fn encode_into_slice<E: Encode, C: Config>(
+    value: E,
     dst: &mut [u8],
     config: C,
 ) -> Result<usize, error::EncodeError> {
-    let writer = enc::write::SliceWriter::new(dst);
-    let mut encoder = enc::EncoderImpl::<_, C>::new(writer, config);
-    val.encode(&mut encoder)?;
+    let mut encoder = enc::EncoderImpl::new(enc::write::SliceWriter::new(dst), config);
+    value.encode(&mut encoder)?;
     Ok(encoder.into_writer().bytes_written())
 }
 
-/// Encode the given value into a custom [Writer].
-///
-/// See the [config] module for more information on configurations.
-///
-/// [config]: config/index.html
-pub fn encode_into_writer<E: enc::Encode, W: Writer, C: Config>(
-    val: E,
+/// Encodes `value` into a custom [`Writer`].
+pub fn encode_into_writer<E: Encode, W: Writer, C: Config>(
+    value: E,
     writer: W,
     config: C,
 ) -> Result<(), error::EncodeError> {
-    let mut encoder = enc::EncoderImpl::<_, C>::new(writer, config);
-    val.encode(&mut encoder)?;
+    let mut encoder = enc::EncoderImpl::new(writer, config);
+    value.encode(&mut encoder)?;
     Ok(())
 }
 
-/// Attempt to decode a given type `D` from the given slice. Returns the decoded output and the amount of bytes read.
+/// Decodes a value from `src` and returns it together with the number of bytes
+/// read.
 ///
-/// Note that this does not work with borrowed types like `&str` or `&[u8]`. For that use [borrow_decode_from_slice].
-///
-/// See the [config] module for more information on configurations.
-///
-/// [config]: config/index.html
-pub fn decode_from_slice<D: de::Decode<()>, C: Config>(
+/// This does not support borrowed output types such as `&str` or `&[u8]`; use
+/// [`borrow_decode_from_slice`] for those.
+pub fn decode_from_slice<D: Decode<()>, C: Config>(
     src: &[u8],
     config: C,
 ) -> Result<(D, usize), error::DecodeError> {
     decode_from_slice_with_context(src, config, ())
 }
 
-/// Attempt to decode a given type `D` from the given slice with `Context`. Returns the decoded output and the amount of bytes read.
+/// Decodes a value from `src` with a context.
 ///
-/// Note that this does not work with borrowed types like `&str` or `&[u8]`. For that use [borrow_decode_from_slice].
-///
-/// See the [config] module for more information on configurations.
-///
-/// [config]: config/index.html
-pub fn decode_from_slice_with_context<Context, D: de::Decode<Context>, C: Config>(
+/// This does not support borrowed output types such as `&str` or `&[u8]`; use
+/// [`borrow_decode_from_slice_with_context`] for those.
+pub fn decode_from_slice_with_context<Context, D: Decode<Context>, C: Config>(
     src: &[u8],
     config: C,
     context: Context,
 ) -> Result<(D, usize), error::DecodeError> {
     let reader = de::read::SliceReader::new(src);
-    let mut decoder = de::DecoderImpl::<_, C, Context>::new(reader, config, context);
-    let result = D::decode(&mut decoder)?;
-    let bytes_read = src.len() - decoder.reader().slice.len();
-    Ok((result, bytes_read))
+    let mut decoder = de::DecoderImpl::new(reader, config, context);
+    let value = D::decode(&mut decoder)?;
+    Ok((value, decoder.bytes_read()))
 }
 
-/// Attempt to decode a given type `D` from the given slice. Returns the decoded output and the amount of bytes read.
-///
-/// See the [config] module for more information on configurations.
-///
-/// [config]: config/index.html
-pub fn borrow_decode_from_slice<'a, D: de::BorrowDecode<'a, ()>, C: Config>(
+/// Decodes a value that may borrow from `src`.
+pub fn borrow_decode_from_slice<'a, D: BorrowDecode<'a, ()>, C: Config>(
     src: &'a [u8],
     config: C,
 ) -> Result<(D, usize), error::DecodeError> {
     borrow_decode_from_slice_with_context(src, config, ())
 }
 
-/// Attempt to decode a given type `D` from the given slice with `Context`. Returns the decoded output and the amount of bytes read.
-///
-/// See the [config] module for more information on configurations.
-///
-/// [config]: config/index.html
+/// Decodes a value that may borrow from `src` with a context.
 pub fn borrow_decode_from_slice_with_context<
     'a,
     Context,
-    D: de::BorrowDecode<'a, Context>,
+    D: BorrowDecode<'a, Context>,
     C: Config,
 >(
     src: &'a [u8],
@@ -198,33 +162,25 @@ pub fn borrow_decode_from_slice_with_context<
     context: Context,
 ) -> Result<(D, usize), error::DecodeError> {
     let reader = de::read::SliceReader::new(src);
-    let mut decoder = de::DecoderImpl::<_, C, Context>::new(reader, config, context);
-    let result = D::borrow_decode(&mut decoder)?;
-    let bytes_read = src.len() - decoder.reader().slice.len();
-    Ok((result, bytes_read))
+    let mut decoder = de::DecoderImpl::new(reader, config, context);
+    let value = D::borrow_decode(&mut decoder)?;
+    Ok((value, decoder.bytes_read()))
 }
 
-/// Attempt to decode a given type `D` from the given [Reader].
-///
-/// See the [config] module for more information on configurations.
-///
-/// [config]: config/index.html
-pub fn decode_from_reader<D: de::Decode<()>, R: Reader, C: Config>(
+/// Decodes a value from a custom [`Reader`].
+pub fn decode_from_reader<D: Decode<()>, R: Reader, C: Config>(
     reader: R,
     config: C,
 ) -> Result<D, error::DecodeError> {
-    let mut decoder = de::DecoderImpl::<_, C, ()>::new(reader, config, ());
+    let mut decoder = de::DecoderImpl::new(reader, config, ());
     D::decode(&mut decoder)
 }
 
-// The spec is included in the docs only when `derive` and `alloc` are enabled,
-// because its examples depend on both features.
 #[cfg(all(feature = "alloc", feature = "derive", doc))]
 pub mod spec {
     #![doc = include_str!("../docs/spec.md")]
 }
 
-// Test the examples in README.md
 #[cfg(all(feature = "alloc", feature = "derive", doctest))]
 mod readme {
     #![doc = include_str!("../README.md")]

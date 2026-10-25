@@ -1,66 +1,51 @@
-//! The config module is used to change the behavior of uklad's encoding and decoding logic.
+//! Encoding and decoding configuration.
 //!
-//! *Important* make sure you use the same config for encoding and decoding, or else uklad will not work properly.
-//!
-//! To use a config, first create a type of [Configuration]. This type will implement trait [Config] for use with uklad.
+//! The same configuration must be used for encoding and decoding.
 //!
 //! ```
 //! let config = uklad::config::standard()
-//!     // pick one of:
 //!     .with_big_endian()
-//!     .with_little_endian()
-//!     // pick one of:
-//!     .with_variable_int_encoding()
-//!     .with_fixed_int_encoding();
+//!     .with_variable_int_encoding();
 //! ```
-//!
-//! See [Configuration] for more information on the configuration options.
 
-pub(crate) use self::internal::*;
 use core::marker::PhantomData;
 
-/// The Configuration struct is used to build uklad configurations. The [Config] trait is implemented
-/// by this struct when a valid configuration has been constructed.
+/// A complete encoder/decoder configuration.
 ///
-/// The following methods are mutually exclusive and will overwrite each other. The last call to one of these methods determines the behavior of the configuration:
-///
-/// - [with_little_endian] and [with_big_endian]
-/// - [with_fixed_int_encoding] and [with_variable_int_encoding]
-///
-///
-/// [with_little_endian]: #method.with_little_endian
-/// [with_big_endian]: #method.with_big_endian
-/// [with_fixed_int_encoding]: #method.with_fixed_int_encoding
-/// [with_variable_int_encoding]: #method.with_variable_int_encoding
-#[derive(Copy, Clone, Debug)]
+/// The type parameters select the endianness, integer encoding, and size limit.
+/// Use [`standard`], [`legacy`], or [`Configuration::default`] as a starting
+/// point and adjust it with the `with_*` methods.
+#[derive(Debug)]
 pub struct Configuration<E = LittleEndian, I = Varint, L = NoLimit> {
-    _e: PhantomData<E>,
-    _i: PhantomData<I>,
-    _l: PhantomData<L>,
+    endianness: PhantomData<E>,
+    int_encoding: PhantomData<I>,
+    limit: PhantomData<L>,
 }
 
-// When adding more features to configuration, follow these steps:
-// - Create 2 or more structs that can be used as a type (e.g. Limit and NoLimit)
-// - Add an `Internal...Config` to the `internal` module
-// - Make sure `Config` and `impl<T> Config for T` extend from this new trait
-// - Add a generic to `Configuration`
-// - Add this generic to `impl<...> Default for Configuration<...>`
-// - Add this generic to `const fn generate<...>()`
-// - Add this generic to _every_ function in `Configuration`
-// - Add your new methods
+impl<E, I, L> Copy for Configuration<E, I, L> {}
 
-/// The default config for uklad 2.0. By default this will be:
-/// - Little endian
-/// - Variable int encoding
+impl<E, I, L> Clone for Configuration<E, I, L> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+/// The default configuration: little endian with variable-length integers.
 pub const fn standard() -> Configuration {
     generate()
 }
 
-/// Creates the "legacy" default config. This is the default configuration that was historically used by this crate.
-/// - Little endian
-/// - Fixed int length encoding
+/// Little endian with fixed-length integers.
 pub const fn legacy() -> Configuration<LittleEndian, Fixint, NoLimit> {
     generate()
+}
+
+const fn generate<E, I, L>() -> Configuration<E, I, L> {
+    Configuration {
+        endianness: PhantomData,
+        int_encoding: PhantomData,
+        limit: PhantomData,
+    }
 }
 
 impl<E, I, L> Default for Configuration<E, I, L> {
@@ -69,226 +54,186 @@ impl<E, I, L> Default for Configuration<E, I, L> {
     }
 }
 
-const fn generate<E, I, L>() -> Configuration<E, I, L> {
-    Configuration {
-        _e: PhantomData,
-        _i: PhantomData,
-        _l: PhantomData,
-    }
-}
-
 impl<E, I, L> Configuration<E, I, L> {
-    /// Makes uklad encode all integer types in big endian.
+    /// Encodes integers in big endian.
     pub const fn with_big_endian(self) -> Configuration<BigEndian, I, L> {
         generate()
     }
 
-    /// Makes uklad encode all integer types in little endian.
+    /// Encodes integers in little endian.
     pub const fn with_little_endian(self) -> Configuration<LittleEndian, I, L> {
         generate()
     }
 
-    /// Makes uklad encode all integer types with a variable integer encoding.
+    /// Encodes integers using a variable-length representation.
     ///
-    /// Encoding an unsigned integer v (of any type excepting u8) works as follows:
+    /// Unsigned values are encoded as follows:
     ///
-    /// 1. If `u < 251`, encode it as a single byte with that value.
-    /// 2. If `251 <= u < 2**16`, encode it as a literal byte 251, followed by a u16 with value `u`.
-    /// 3. If `2**16 <= u < 2**32`, encode it as a literal byte 252, followed by a u32 with value `u`.
-    /// 4. If `2**32 <= u < 2**64`, encode it as a literal byte 253, followed by a u64 with value `u`.
-    /// 5. If `2**64 <= u < 2**128`, encode it as a literal byte 254, followed by a u128 with value `u`.
+    /// - `0..=250` as a single byte.
+    /// - `251..=u16::MAX` as [`U16_MARKER`] followed by a `u16`.
+    /// - `u16::MAX + 1..=u32::MAX` as [`U32_MARKER`] followed by a `u32`.
+    /// - `u32::MAX + 1..=u64::MAX` as [`U64_MARKER`] followed by a `u64`.
+    /// - `u64::MAX + 1..=u128::MAX` as [`U128_MARKER`] followed by a `u128`.
     ///
-    /// Then, for signed integers, we first convert to unsigned using the zigzag algorithm,
-    /// and then encode them as we do for unsigned integers generally. The reason we use this
-    /// algorithm is that it encodes those values which are close to zero in less bytes; the
-    /// obvious algorithm, where we encode the cast values, gives a very large encoding for all
-    /// negative values.
-    ///
-    /// The zigzag algorithm is defined as follows:
-    ///
-    /// ```rust
-    /// # type Signed = i32;
-    /// # type Unsigned = u32;
-    /// fn zigzag(v: Signed) -> Unsigned {
-    ///     match v {
-    ///         0 => 0,
-    ///         // To avoid the edge case of Signed::min_value()
-    ///         // !n is equal to `-n - 1`, so this is:
-    ///         // !n * 2 + 1 = 2(-n - 1) + 1 = -2n - 2 + 1 = -2n - 1
-    ///         v if v < 0 => !(v as Unsigned) * 2 - 1,
-    ///         v if v > 0 => (v as Unsigned) * 2,
-    /// #       _ => unreachable!()
-    ///     }
-    /// }
-    /// ```
-    ///
-    /// And works such that:
-    ///
-    /// ```rust
-    /// # let zigzag = |n: i64| -> u64 {
-    /// #     match n {
-    /// #         0 => 0,
-    /// #         v if v < 0 => !(v as u64) * 2 + 1,
-    /// #         v if v > 0 => (v as u64) * 2,
-    /// #         _ => unreachable!(),
-    /// #     }
-    /// # };
-    /// assert_eq!(zigzag(0), 0);
-    /// assert_eq!(zigzag(-1), 1);
-    /// assert_eq!(zigzag(1), 2);
-    /// assert_eq!(zigzag(-2), 3);
-    /// assert_eq!(zigzag(2), 4);
-    /// // etc
-    /// assert_eq!(zigzag(i64::min_value()), u64::max_value());
-    /// ```
-    ///
-    /// Note that u256 and the like are unsupported by this format; if and when they are added to the
-    /// language, they may be supported via the extension point given by the 255 byte.
+    /// Signed values use zigzag encoding before the unsigned representation.
     pub const fn with_variable_int_encoding(self) -> Configuration<E, Varint, L> {
         generate()
     }
 
-    /// Fixed-size integer encoding.
+    /// Encodes integers using a fixed-length representation.
     ///
-    /// * Fixed size integers are encoded directly
-    /// * Enum discriminants are encoded as u32
-    /// * Lengths and usize are encoded as u64
+    /// Enum discriminants are encoded as `u32`, and lengths as `u64`.
     pub const fn with_fixed_int_encoding(self) -> Configuration<E, Fixint, L> {
         generate()
     }
 
-    /// Sets the byte limit to `limit`.
+    /// Rejects inputs larger than `N` bytes.
     pub const fn with_limit<const N: usize>(self) -> Configuration<E, I, Limit<N>> {
         generate()
     }
 
-    /// Clear the byte limit.
+    /// Removes the size limit.
     pub const fn with_no_limit(self) -> Configuration<E, I, NoLimit> {
         generate()
     }
 }
 
-/// Indicates a type is valid for controlling the uklad configuration
-pub trait Config:
-    InternalEndianConfig + InternalIntEncodingConfig + InternalLimitConfig + Copy + Clone
-{
-    /// This configuration's Endianness
-    fn endianness(&self) -> Endianness;
-
-    /// This configuration's Integer Encoding
-    fn int_encoding(&self) -> IntEncoding;
-
-    /// This configuration's byte limit, or `None` if no limit is configured
-    fn limit(&self) -> Option<usize>;
-}
-
-impl<T> Config for T
-where
-    T: InternalEndianConfig + InternalIntEncodingConfig + InternalLimitConfig + Copy + Clone,
-{
-    fn endianness(&self) -> Endianness {
-        <T as InternalEndianConfig>::ENDIAN
-    }
-
-    fn int_encoding(&self) -> IntEncoding {
-        <T as InternalIntEncodingConfig>::INT_ENCODING
-    }
-
-    fn limit(&self) -> Option<usize> {
-        <T as InternalLimitConfig>::LIMIT
-    }
-}
-
-/// Encodes all integer types in big endian.
-#[derive(Copy, Clone, Debug)]
-pub struct BigEndian;
-
-impl InternalEndianConfig for BigEndian {
-    const ENDIAN: Endianness = Endianness::Big;
-}
-
-/// Encodes all integer types in little endian.
-#[derive(Copy, Clone, Debug)]
-pub struct LittleEndian;
-
-impl InternalEndianConfig for LittleEndian {
-    const ENDIAN: Endianness = Endianness::Little;
-}
-
-/// Use fixed-size integer encoding.
-#[derive(Copy, Clone, Debug)]
-pub struct Fixint;
-
-impl InternalIntEncodingConfig for Fixint {
-    const INT_ENCODING: IntEncoding = IntEncoding::Fixed;
-}
-
-/// Use variable integer encoding.
-#[derive(Copy, Clone, Debug)]
-pub struct Varint;
-
-impl InternalIntEncodingConfig for Varint {
-    const INT_ENCODING: IntEncoding = IntEncoding::Variable;
-}
-
-/// Sets an unlimited byte limit.
-#[derive(Copy, Clone, Debug)]
-pub struct NoLimit;
-impl InternalLimitConfig for NoLimit {
-    const LIMIT: Option<usize> = None;
-}
-
-/// Sets the byte limit to N.
-#[derive(Copy, Clone, Debug)]
-pub struct Limit<const N: usize>;
-impl<const N: usize> InternalLimitConfig for Limit<N> {
-    const LIMIT: Option<usize> = Some(N);
-}
-
-/// Endianness of a `Configuration`.
-#[derive(PartialEq, Eq)]
+/// Byte order used for multi-byte integers.
+#[derive(PartialEq, Eq, Debug)]
 #[non_exhaustive]
 pub enum Endianness {
-    /// Little Endian encoding, see `LittleEndian`.
+    /// Little endian.
     Little,
-    /// Big Endian encoding, see `BigEndian`.
+    /// Big endian.
     Big,
 }
 
-/// Integer Encoding of a `Configuration`.
-#[derive(PartialEq, Eq)]
+/// Integer representation.
+#[derive(PartialEq, Eq, Debug)]
 #[non_exhaustive]
 pub enum IntEncoding {
-    /// Fixed Integer Encoding, see `Fixint`.
+    /// Fixed-width integers.
     Fixed,
-    /// Variable Integer Encoding, see `Varint`.
+    /// Variable-width integers.
     Variable,
 }
 
-mod internal {
-    use super::{Configuration, Endianness, IntEncoding};
+/// The configuration interface used by encoders and decoders.
+///
+/// This trait is sealed: it is implemented only for [`Configuration`].
+pub trait Config: Copy + Clone + private::Sealed {
+    /// The configured size limit, if any.
+    const LIMIT: Option<usize>;
+    /// The configured byte order.
+    const ENDIANNESS: Endianness;
+    /// The configured integer representation.
+    const INT_ENCODING: IntEncoding;
 
-    pub trait InternalEndianConfig {
-        const ENDIAN: Endianness;
+    /// Returns the configured byte order.
+    fn endianness(&self) -> Endianness {
+        Self::ENDIANNESS
     }
 
-    impl<E: InternalEndianConfig, I, L> InternalEndianConfig for Configuration<E, I, L> {
-        const ENDIAN: Endianness = E::ENDIAN;
+    /// Returns the configured integer representation.
+    fn int_encoding(&self) -> IntEncoding {
+        Self::INT_ENCODING
     }
 
-    pub trait InternalIntEncodingConfig {
-        const INT_ENCODING: IntEncoding;
+    /// Returns the configured size limit, if any.
+    fn limit(&self) -> Option<usize> {
+        Self::LIMIT
     }
+}
 
-    impl<E, I: InternalIntEncodingConfig, L> InternalIntEncodingConfig for Configuration<E, I, L> {
-        const INT_ENCODING: IntEncoding = I::INT_ENCODING;
-    }
+/// Big endian byte order.
+#[derive(Copy, Clone, Debug)]
+pub struct BigEndian;
 
-    pub trait InternalLimitConfig {
-        const LIMIT: Option<usize>;
-    }
+/// Little endian byte order.
+#[derive(Copy, Clone, Debug)]
+pub struct LittleEndian;
 
-    impl<E, I, L: InternalLimitConfig> InternalLimitConfig for Configuration<E, I, L> {
-        const LIMIT: Option<usize> = L::LIMIT;
-    }
+/// Fixed-width integer representation.
+#[derive(Copy, Clone, Debug)]
+pub struct Fixint;
+
+/// Variable-width integer representation.
+#[derive(Copy, Clone, Debug)]
+pub struct Varint;
+
+/// No size limit.
+#[derive(Copy, Clone, Debug)]
+pub struct NoLimit;
+
+/// A size limit of `N` bytes.
+#[derive(Copy, Clone, Debug)]
+pub struct Limit<const N: usize>;
+
+/// Marker byte introducing a 16-bit variable integer.
+pub const U16_MARKER: u8 = 251;
+/// Marker byte introducing a 32-bit variable integer.
+pub const U32_MARKER: u8 = 252;
+/// Marker byte introducing a 64-bit variable integer.
+pub const U64_MARKER: u8 = 253;
+/// Marker byte introducing a 128-bit variable integer.
+pub const U128_MARKER: u8 = 254;
+
+mod private {
+    pub trait Sealed {}
+
+    impl<E, I, L> Sealed for super::Configuration<E, I, L> {}
+}
+
+impl<E: ByteOrder, I: IntegerEncoding, L: SizeLimit> Config for Configuration<E, I, L> {
+    const LIMIT: Option<usize> = L::VALUE;
+    const ENDIANNESS: Endianness = E::VALUE;
+    const INT_ENCODING: IntEncoding = I::VALUE;
+}
+
+impl<E: ByteOrder, I, L> ByteOrder for Configuration<E, I, L> {
+    const VALUE: Endianness = E::VALUE;
+}
+
+impl<E, I: IntegerEncoding, L> IntegerEncoding for Configuration<E, I, L> {
+    const VALUE: IntEncoding = I::VALUE;
+}
+
+impl<E, I, L: SizeLimit> SizeLimit for Configuration<E, I, L> {
+    const VALUE: Option<usize> = L::VALUE;
+}
+
+pub(crate) trait ByteOrder {
+    const VALUE: Endianness;
+}
+
+pub(crate) trait IntegerEncoding {
+    const VALUE: IntEncoding;
+}
+
+pub(crate) trait SizeLimit {
+    const VALUE: Option<usize>;
+}
+
+impl ByteOrder for BigEndian {
+    const VALUE: Endianness = Endianness::Big;
+}
+
+impl ByteOrder for LittleEndian {
+    const VALUE: Endianness = Endianness::Little;
+}
+
+impl IntegerEncoding for Fixint {
+    const VALUE: IntEncoding = IntEncoding::Fixed;
+}
+
+impl IntegerEncoding for Varint {
+    const VALUE: IntEncoding = IntEncoding::Variable;
+}
+
+impl SizeLimit for NoLimit {
+    const VALUE: Option<usize> = None;
+}
+
+impl<const N: usize> SizeLimit for Limit<N> {
+    const VALUE: Option<usize> = Some(N);
 }

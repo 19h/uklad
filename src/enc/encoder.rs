@@ -1,24 +1,21 @@
-use super::{write::Writer, Encoder};
-use crate::{config::Config, utils::Sealed};
+use super::{Encoder, Sealed, write::Writer};
+use crate::config::Config;
 
-/// An Encoder that writes bytes into a given writer `W`.
+/// An encoder that writes to a [`Writer`].
 ///
-/// This struct should rarely be used.
-/// In most cases, prefer any of the `encode` functions.
-///
-/// The ByteOrder that is chosen will impact the endianness that
-/// is used to write integers to the writer.
+/// Most code should use the top-level `encode_*` functions instead.
 ///
 /// ```
-/// # use uklad::enc::{write::SliceWriter, EncoderImpl, Encode};
-/// let slice: &mut [u8] = &mut [0, 0, 0, 0];
-/// let config = uklad::config::legacy().with_big_endian();
+/// use uklad::enc::{EncoderImpl, write::SliceWriter};
 ///
-/// let mut encoder = EncoderImpl::new(SliceWriter::new(slice), config);
-/// // this u32 can be any Encodable
-/// 5u32.encode(&mut encoder).unwrap();
-/// assert_eq!(encoder.into_writer().bytes_written(), 4);
-/// assert_eq!(slice, [0, 0, 0, 5]);
+/// let mut buffer = [0u8; 4];
+/// let mut encoder = EncoderImpl::new(
+///     SliceWriter::new(&mut buffer),
+///     uklad::config::legacy().with_big_endian(),
+/// );
+///
+/// uklad::Encode::encode(&5u32, &mut encoder).unwrap();
+/// assert_eq!(buffer, [0, 0, 0, 5]);
 /// ```
 pub struct EncoderImpl<W: Writer, C: Config> {
     writer: W,
@@ -26,21 +23,22 @@ pub struct EncoderImpl<W: Writer, C: Config> {
 }
 
 impl<W: Writer, C: Config> EncoderImpl<W, C> {
-    /// Create a new Encoder
-    pub const fn new(writer: W, config: C) -> EncoderImpl<W, C> {
-        EncoderImpl { writer, config }
+    /// Creates an encoder writing to `writer`.
+    pub const fn new(writer: W, config: C) -> Self {
+        Self { writer, config }
     }
 
-    /// Return the underlying writer
+    /// Returns the underlying writer.
     #[inline]
     pub fn into_writer(self) -> W {
         self.writer
     }
 }
 
+impl<W: Writer, C: Config> Sealed for EncoderImpl<W, C> {}
+
 impl<W: Writer, C: Config> Encoder for EncoderImpl<W, C> {
     type W = W;
-
     type C = C;
 
     #[inline]
@@ -53,5 +51,3 @@ impl<W: Writer, C: Config> Encoder for EncoderImpl<W, C> {
         &self.config
     }
 }
-
-impl<W: Writer, C: Config> Sealed for EncoderImpl<W, C> {}

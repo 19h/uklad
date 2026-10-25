@@ -1,14 +1,19 @@
-# Uklad-derive
+# uklad_derive
 
-The derive crate for uklad. Implements `uklad::Encode` and `uklad::Decode`.
+Derive macros for [`uklad`](https://crates.io/crates/uklad): `Encode`, `Decode`, and `BorrowDecode`.
 
-# Structure
+## Structure
 
-- `src/attribute.rs` parses the `#[uklad(...)]` container and field attributes.
-- `src/derive_struct.rs` generates the `Encode`/`Decode` implementations for structs.
-- `src/derive_enum.rs` generates the `Encode`/`Decode` implementations for enums.
-- `src/lib.rs` wires the derive macros together.
+- `src/attrs.rs` parses `#[uklad(...)]` container, field, and variant attributes.
+- `src/expand.rs` generates the trait implementations.
+- `src/lib.rs` exposes the proc macros.
 
-For additional derive testing, see the test cases in `../tests`.
+## Attributes
 
-For testing purposes, all generated code is outputted to the current `target/generated/uklad` folder, under file name `<struct/enum name>_Encode.rs` and `<struct/enum name>_Decode.rs`. This can help with debugging.
+Container options: `crate`, `bounds`, `encode_bounds`, `decode_bounds`, `borrow_decode_bounds`, `decode_context`.
+
+Field options: `skip`, `default`, `with`, `with_serde`.
+
+Variant options: `with`.
+
+See the `uklad` documentation for usage.

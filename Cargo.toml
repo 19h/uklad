@@ -3,40 +3,26 @@ members = ["derive"]
 
 [package]
 name = "uklad"
-version = "2.0.1" # remember to update html_root_url and uklad_derive
-authors = [
-    "Ty Overby <ty@pre-alpha.com>",
-    "Zoey Riordan <zoey@dos.cafe>",
-    "Victor Koenders <bincode@trangar.com>",
-]
-exclude = ["examples/*", ".gitignore", ".github/"]
-rust-version = "1.85.0"
-
-publish = true
-
+version = "2.0.1"
+edition = "2024"
+rust-version = "1.85"
+description = "A compact binary encoder and decoder"
 repository = "https://github.com/bgw/uklad"
 documentation = "https://docs.rs/uklad"
-readme = "./README.md"
 categories = ["encoding", "network-programming"]
 keywords = ["binary", "encode", "decode", "serialize", "deserialize"]
-
-license = "MIT"
-description = "A binary serialization / deserialization strategy for transforming structs into bytes and vice versa!"
-
-edition = "2021"
 
 [features]
 default = ["std", "derive"]
 std = ["alloc", "serde?/std"]
 alloc = ["serde?/alloc"]
-derive = ["uklad_derive"]
+derive = ["dep:uklad_derive"]
 
 [dependencies]
 uklad_derive = { path = "derive", version = "2.0.1", optional = true }
 serde = { version = "1.0", default-features = false, optional = true }
 unty = "0.0.4"
 
-# Used for tests
 [dev-dependencies]
 ouroboros = "0.18.3"
 serde_derive = "1.0"

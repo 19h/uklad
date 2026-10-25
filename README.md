@@ -91,7 +91,3 @@ excessive amount of memory.
 ## Format
 
 The serialization format is specified in [docs/spec.md](docs/spec.md).
-
-## License
-
-MIT. See [LICENSE.md](LICENSE.md).
