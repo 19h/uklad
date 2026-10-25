@@ -32,7 +32,7 @@
       },
       "steps": [
         {
-          "uses": "actions/checkout@v4",
+          "uses": "actions/checkout@v7",
           "name": "Checkout"
         },
         {
@@ -93,7 +93,7 @@
       "runs-on": "${{ matrix.runner }}",
       "steps": [
         {
-          "uses": "actions/checkout@v4",
+          "uses": "actions/checkout@v7",
           "name": "Checkout"
         },
         {
@@ -125,7 +125,7 @@ fi",
       "runs-on": "ubuntu-latest",
       "steps": [
         {
-          "uses": "actions/checkout@v4",
+          "uses": "actions/checkout@v7",
           "name": "Checkout"
         },
         {
