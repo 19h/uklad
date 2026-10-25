@@ -9,7 +9,7 @@
 //!
 //! # Serde
 //!
-//! Starting from uklad 2, serde is now an optional dependency. If you want to use serde, please enable the `serde` feature. See [Features](#features) for more information.
+//! serde support is optional. Enable the `serde` feature to use the [serde] module. See [Features](#features) for more information.
 //!
 //! # Features
 //!
@@ -17,9 +17,10 @@
 //! |------|--------|-------------|-----------------------------------------|-----------------------------------------------------------------|-----|
 //! |std   | Yes    | No          |`HashMap` and `HashSet`|`decode_from_std_read` and `encode_into_std_write`|
 //! |alloc | Yes    | No          |All common containers in alloc, like `Vec`, `String`, `Box`|`encode_to_vec`|
-//! |atomic| Yes    | No          |All `Atomic*` integer types, e.g. `AtomicUsize`, and `AtomicBool`||
 //! |derive| Yes    | No          |||Enables the `BorrowDecode`, `Decode` and `Encode` derive macros|
 //! |serde | No     | Yes (MSRV reliant on serde)|`Compat` and `BorrowCompat`, which will work for all types that implement serde's traits|serde-specific encode/decode functions in the [serde] module|Note: There are several [known issues](serde/index.html#known-issues) when using serde and uklad|
+//!
+//! Atomic integer types are supported on targets that provide them; no feature is required.
 //!
 //! # Which functions to use
 //!

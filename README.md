@@ -1,24 +1,31 @@
-# Uklad
-<img align="right" src="./logo.svg" />
+# uklad
 
 [![CI](https://github.com/bgw/uklad/workflows/CI/badge.svg)](https://github.com/bgw/uklad/actions)
-[![](https://img.shields.io/crates/v/uklad.svg)](https://crates.io/crates/uklad)
-[![](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Crates.io](https://img.shields.io/crates/v/uklad.svg)](https://crates.io/crates/uklad)
+[![Documentation](https://docs.rs/uklad/badge.svg)](https://docs.rs/uklad)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
 
-A compact encoder / decoder pair that uses a binary zero-fluff encoding scheme.
-The size of the encoded object will be the same or smaller than the size that
-the object takes up in memory in a running Rust program.
+A compact binary encoder and decoder for Rust. Values are serialized without
+field names or other metadata, so the encoded output is typically the same size
+as, or smaller than, the value's in-memory representation.
 
-In addition to exposing two simple functions
-(one that encodes to `Vec<u8>`, and one that decodes from `&[u8]`),
-uklad exposes a Reader/Writer API that makes it work
-perfectly with other stream-based APIs such as Rust files, network streams,
-and the [flate2-rs](https://github.com/rust-lang/flate2-rs) compression
-library.
+The crate provides:
 
-## [API Documentation](https://docs.rs/uklad/)
+- `Encode` and `Decode` traits with derive macros.
+- `no_std` support with optional `alloc`.
+- Configurable byte order, integer encoding, and size limits.
+- Optional serde interoperability.
 
-## Example
+## Installation
+
+```toml
+[dependencies]
+uklad = "2.0"
+```
+
+The minimum supported Rust version is 1.85.0.
+
+## Usage
 
 ```rust
 use uklad::{config, Decode, Encode};
@@ -39,59 +46,57 @@ fn main() {
 
     let encoded: Vec<u8> = uklad::encode_to_vec(&world, config).unwrap();
 
-    // The length of the vector is encoded as a varint u64, which in this case gets collapsed to a single byte
-    // See the documentation on varint for more info for that.
-    // The 4 floats are encoded in 4 bytes each.
-    assert_eq!(encoded.len(), 1 + 4 * 4);
-
-    let (decoded, len): (World, usize) = uklad::decode_from_slice(&encoded[..], config).unwrap();
+    let (decoded, len): (World, usize) =
+        uklad::decode_from_slice(&encoded, config).unwrap();
 
     assert_eq!(world, decoded);
-    assert_eq!(len, encoded.len()); // read all bytes
+    assert_eq!(len, encoded.len());
 }
 ```
 
-## Specification
+Encoding and decoding also work directly with readers and writers, and with
+pre-allocated buffers. See the
+[documentation](https://docs.rs/uklad/latest/uklad/) for the full API.
 
-Uklad's format is specified in [docs/spec.md](https://github.com/bgw/uklad/blob/trunk/docs/spec.md).
+## Feature flags
 
-## FAQ
+| Feature  | Default | Description                                                        |
+| -------- | ------- | ------------------------------------------------------------------ |
+| `std`    | yes     | Standard library support, including `std::io` readers and writers. |
+| `alloc`  | yes     | Support for `Vec`, `String`, `Box`, and other alloc types.         |
+| `derive` | yes     | `#[derive(Encode, Decode)]` macros.                                |
+| `serde`  | no      | Adapters and encode/decode functions for serde types.              |
 
-### Is Uklad suitable for storage?
+For `no_std` targets with an allocator:
 
-The encoding format is stable, provided the same configuration is used.
-This should ensure that later versions can still read data produced by a previous versions of the library if no major version change
-has occurred.
+```toml
+[dependencies]
+uklad = { version = "2.0", default-features = false, features = ["alloc", "derive"] }
+```
 
-Uklad is invariant over byte-order, making an exchange between different
-architectures possible. It is also rather space efficient, as it stores no
-metadata like struct field names in the output format and writes long streams of
-binary data without needing any potentially size-increasing encoding.
+## Configuration
 
-As a result, Uklad is suitable for storing data. Be aware that it does not
-implement any sort of data versioning scheme or file headers, as these
-features are outside the scope of this crate.
+`config::standard()` selects compact variable-length integers. `config::legacy()`
+uses a fixed-length integer encoding. Both can be adjusted for byte order and
+size limits:
 
-### Is Uklad suitable for untrusted inputs?
+```rust
+let config = uklad::config::standard()
+    .with_big_endian()
+    .with_limit::<1024>();
+```
 
-Uklad attempts to protect against hostile data. There is a maximum size
-configuration available (`Configuration::with_limit`), but not enabled in the
-default configuration. Enabling it limits pre-allocation size to
-prevent memory exhaustion attacks.
+## Untrusted input
 
-Deserializing any incoming data will not cause undefined behavior or memory
-issues, assuming that the deserialization code for the struct is safe itself.
+When decoding data from an untrusted source, enable a size limit with
+`Configuration::with_limit`. This bounds pre-allocation and causes decoding to
+fail with `DecodeError::LimitExceeded` instead of attempting to allocate an
+excessive amount of memory.
 
-Uklad can be used for untrusted inputs in the sense that it will not create a
-security issue in your application, provided the configuration is changed to enable a
-maximum size limit. Malicious inputs will fail upon deserialization.
+## Format
 
-### What is Uklad's MSRV (minimum supported Rust version)?
+The serialization format is specified in [docs/spec.md](docs/spec.md).
 
-Uklad 2.0 has an MSRV of 1.85.0. Any changes to the MSRV are considered a breaking change for semver purposes, except when certain features are enabled. Features affecting MSRV are documented in the crate root.
+## License
 
-### Does uklad respect `#[repr(u8)]`?
-
-Uklad encodes enum variants as a `u32`. For smaller output, enable `Configuration::with_variable_int_encoding()`; this option is enabled by default in the `standard` configuration, in which case enum variants are generally encoded as a `u8`.
-
-`#[repr(...)]` is not used because uklad defines its own format rather than mirroring Rust's in-memory representation. To encode or decode a different protocol, implement `Encode` and `Decode` directly. `uklad-derive` outputs its generated implementations to `target/generated/uklad/<name>_Encode.rs` and `target/generated/uklad/<name>_Decode.rs`, which can serve as a reference.
+MIT. See [LICENSE.md](LICENSE.md).
