@@ -1,5 +1,5 @@
-use uklad::config;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use uklad::config;
 
 fn inline_decoder_claim_bytes_read(c: &mut Criterion) {
     let config = config::standard().with_limit::<100000>();

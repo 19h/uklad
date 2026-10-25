@@ -449,11 +449,9 @@ fn test_macro_newtype() {
         assert_eq!(usize_len, newtype_len);
         assert_eq!(usize_slice, newtype_slice);
 
-        let (newtype, len) = uklad::decode_from_slice::<MacroNewType, _>(
-            &newtype_slice,
-            uklad::config::standard(),
-        )
-        .unwrap();
+        let (newtype, len) =
+            uklad::decode_from_slice::<MacroNewType, _>(&newtype_slice, uklad::config::standard())
+                .unwrap();
         assert_eq!(newtype, MacroNewType(val));
         assert_eq!(len, newtype_len);
     }

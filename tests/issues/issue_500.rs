@@ -30,8 +30,6 @@ fn test() {
     let config = uklad::config::legacy();
     let encoded = uklad::encode_to_vec(&start, config).unwrap();
     std::dbg!(&encoded);
-    let decoded: Membership = uklad::serde::decode_from_slice(&encoded, config)
-        .unwrap()
-        .0;
+    let decoded: Membership = uklad::serde::decode_from_slice(&encoded, config).unwrap().0;
     assert_eq!(start, decoded);
 }

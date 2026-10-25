@@ -3,7 +3,6 @@
 
 mod utils;
 
-use uklad::error::DecodeError;
 use std::{
     ffi::CString,
     io::{Cursor, Seek, SeekFrom},
@@ -11,6 +10,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{Mutex, RwLock},
 };
+use uklad::error::DecodeError;
 use utils::the_same;
 
 use crate::utils::the_same_with_comparer;
@@ -32,9 +32,7 @@ impl uklad::Encode for Foo {
 }
 
 impl<Context> uklad::Decode<Context> for Foo {
-    fn decode<D: uklad::de::Decoder>(
-        decoder: &mut D,
-    ) -> Result<Self, uklad::error::DecodeError> {
+    fn decode<D: uklad::de::Decoder>(decoder: &mut D) -> Result<Self, uklad::error::DecodeError> {
         Ok(Self {
             a: uklad::Decode::decode(decoder)?,
             b: uklad::Decode::decode(decoder)?,
@@ -56,12 +54,9 @@ fn test_std_cursor() {
 fn test_std_file() {
     let mut file = tempfile::tempfile().expect("Could not create temp file");
 
-    let bytes_written = uklad::encode_into_std_write(
-        Foo { a: 30, b: 50 },
-        &mut file,
-        uklad::config::standard(),
-    )
-    .unwrap();
+    let bytes_written =
+        uklad::encode_into_std_write(Foo { a: 30, b: 50 }, &mut file, uklad::config::standard())
+            .unwrap();
     assert_eq!(bytes_written, 2);
     file.seek(SeekFrom::Start(0)).unwrap();
 

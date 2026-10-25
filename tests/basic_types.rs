@@ -1,11 +1,11 @@
 mod utils;
 
-use uklad::error::DecodeError;
 use core::cell::{Cell, RefCell};
 use core::cmp::Reverse;
 use core::ops::Bound;
 use core::time::Duration;
 use std::num::*;
+use uklad::error::DecodeError;
 use utils::{the_same, the_same_with_comparer};
 
 #[test]
@@ -270,12 +270,7 @@ fn test_array() {
 fn test_duration_out_of_range() {
     let mut input = [0u8; 14];
 
-    uklad::encode_into_slice(
-        (u64::MAX, u32::MAX),
-        &mut input,
-        uklad::config::standard(),
-    )
-    .unwrap();
+    uklad::encode_into_slice((u64::MAX, u32::MAX), &mut input, uklad::config::standard()).unwrap();
 
     let result: Result<(std::time::Duration, usize), _> =
         uklad::decode_from_slice(&input, uklad::config::standard());

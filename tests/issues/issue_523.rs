@@ -2,8 +2,8 @@
 
 extern crate std;
 
-use uklad::{Decode, Encode};
 use std::borrow::Cow;
+use uklad::{Decode, Encode};
 
 #[derive(Clone, Encode, Decode)]
 pub struct Foo<'a>(Cow<'a, str>);

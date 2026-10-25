@@ -2,9 +2,9 @@
 
 extern crate std;
 
-use uklad::{Decode, Encode};
 use std::borrow::Cow;
 use std::string::String;
+use uklad::{Decode, Encode};
 
 #[derive(Decode, Encode, PartialEq, Debug)]
 #[uklad(

@@ -74,8 +74,8 @@ fn test_serialize_deserialize_borrowed_data() {
     ];
 
     let mut result = [0u8; 20];
-    let len = uklad::serde::encode_into_slice(&input, &mut result, uklad::config::standard())
-        .unwrap();
+    let len =
+        uklad::serde::encode_into_slice(&input, &mut result, uklad::config::standard()).unwrap();
     let result = &result[..len];
     assert_eq!(result, expected);
 
@@ -120,8 +120,8 @@ fn test_serialize_deserialize_owned_data() {
     ];
 
     let mut result = [0u8; 20];
-    let len = uklad::serde::encode_into_slice(&input, &mut result, uklad::config::standard())
-        .unwrap();
+    let len =
+        uklad::serde::encode_into_slice(&input, &mut result, uklad::config::standard()).unwrap();
     let result = &result[..len];
     assert_eq!(result, expected);
 
@@ -143,11 +143,11 @@ fn test_serialize_deserialize_owned_data() {
 
 #[cfg(feature = "derive")]
 mod derive {
+    use serde_derive::{Deserialize, Serialize};
     use uklad::{
         serde::{BorrowCompat, Compat},
         Decode, Encode,
     };
-    use serde_derive::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
     pub struct SerdeType {
@@ -176,8 +176,8 @@ mod derive {
             T: uklad::Encode + uklad::Decode<()> + PartialEq + core::fmt::Debug,
         {
             let mut slice = [0u8; 100];
-            let len = uklad::encode_into_slice(&start, &mut slice, uklad::config::standard())
-                .unwrap();
+            let len =
+                uklad::encode_into_slice(&start, &mut slice, uklad::config::standard()).unwrap();
             assert_eq!(len, expected_len);
             let slice = &slice[..len];
             let (result, len): (T, usize) =

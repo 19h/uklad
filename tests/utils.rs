@@ -128,12 +128,7 @@ where
 
 #[cfg(feature = "serde")]
 pub trait TheSameTrait:
-    uklad::Encode
-    + uklad::Decode<()>
-    + serde::de::DeserializeOwned
-    + serde::Serialize
-    + Debug
-    + 'static
+    uklad::Encode + uklad::Decode<()> + serde::de::DeserializeOwned + serde::Serialize + Debug + 'static
 {
 }
 #[cfg(feature = "serde")]

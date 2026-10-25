@@ -1,10 +1,10 @@
 #![cfg(all(feature = "alloc", feature = "derive"))]
 
+use bumpalo::{collections::Vec, vec, Bump};
 use uklad::{
     config, de::BorrowDecoder, decode_from_slice, decode_from_slice_with_context, encode_to_vec,
     error::DecodeError, BorrowDecode, Decode, Encode,
 };
-use bumpalo::{collections::Vec, vec, Bump};
 
 #[derive(PartialEq, Eq, Debug)]
 struct CodableVec<'bump, T: 'bump>(Vec<'bump, T>);

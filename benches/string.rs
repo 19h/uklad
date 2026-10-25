@@ -1,8 +1,6 @@
-// https://github.com/bincode-org/bincode/issues/618
-
-use uklad::{Decode, Encode};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use serde::{Deserialize, Serialize};
+use uklad::{Decode, Encode};
 
 #[derive(Serialize, Deserialize, Default, Encode, Decode)]
 pub struct MyStruct {
@@ -30,41 +28,26 @@ fn build_data(size: usize) -> Vec<MyStruct> {
 fn index_item_decode(c: &mut Criterion) {
     let data = build_data(100);
 
-    c.bench_function("bench v1", |b| {
-        b.iter(|| {
-            let _ = black_box(uklad_1::serialize(black_box(&data))).unwrap();
-        });
-    });
-
     let config = uklad::config::standard();
-    c.bench_function("bench v2 (standard)", |b| {
+    c.bench_function("encode (standard)", |b| {
         b.iter(|| {
             let _ = black_box(uklad::encode_to_vec(black_box(&data), config)).unwrap();
         });
     });
 
     let config = uklad::config::legacy();
-    c.bench_function("bench v2 (legacy)", |b| {
+    c.bench_function("encode (legacy)", |b| {
         b.iter(|| {
             let _ = black_box(uklad::encode_to_vec(black_box(&data), config)).unwrap();
         });
     });
 
-    let encodedv1 = uklad_1::serialize(&data).unwrap();
-    let encodedv2 = uklad::encode_to_vec(&data, config).unwrap();
-    assert_eq!(encodedv1, encodedv2);
+    let encoded = uklad::encode_to_vec(&data, config).unwrap();
 
-    c.bench_function("bench v1 decode", |b| {
-        b.iter(|| {
-            let _: Vec<MyStruct> =
-                black_box(uklad_1::deserialize(black_box(&encodedv1))).unwrap();
-        });
-    });
-
-    c.bench_function("bench v2 decode (legacy)", |b| {
+    c.bench_function("decode (legacy)", |b| {
         b.iter(|| {
             let _: (Vec<MyStruct>, _) =
-                black_box(uklad::decode_from_slice(black_box(&encodedv1), config)).unwrap();
+                black_box(uklad::decode_from_slice(black_box(&encoded), config)).unwrap();
         });
     });
 }

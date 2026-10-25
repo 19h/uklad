@@ -1,6 +1,6 @@
-use uklad::config;
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::distributions::Distribution;
+use uklad::config;
 
 fn slice_varint_u8(c: &mut Criterion) {
     let mut rng = rand::thread_rng();

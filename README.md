@@ -63,8 +63,6 @@ The encoding format is stable, provided the same configuration is used.
 This should ensure that later versions can still read data produced by a previous versions of the library if no major version change
 has occurred.
 
-Uklad 2 can read and write data produced by uklad 1 when the same configuration is used.
-
 Uklad is invariant over byte-order, making an exchange between different
 architectures possible. It is also rather space efficient, as it stores no
 metadata like struct field names in the output format and writes long streams of

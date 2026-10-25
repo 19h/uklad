@@ -56,7 +56,7 @@ pub const fn standard() -> Configuration {
     generate()
 }
 
-/// Creates the "legacy" default config. This is the default config that was present in uklad 1.0
+/// Creates the "legacy" default config. This is the default configuration that was historically used by this crate.
 /// - Little endian
 /// - Fixed int length encoding
 pub const fn legacy() -> Configuration<LittleEndian, Fixint, NoLimit> {

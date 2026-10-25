@@ -30,9 +30,7 @@ impl uklad::Encode for Foo {
 }
 
 impl<Context> uklad::Decode<Context> for Foo {
-    fn decode<D: uklad::de::Decoder>(
-        decoder: &mut D,
-    ) -> Result<Self, uklad::error::DecodeError> {
+    fn decode<D: uklad::de::Decoder>(decoder: &mut D) -> Result<Self, uklad::error::DecodeError> {
         Ok(Self {
             a: uklad::Decode::decode(decoder)?,
             b: uklad::Decode::decode(decoder)?,
