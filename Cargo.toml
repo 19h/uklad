@@ -1,0 +1,30 @@
+[workspace]
+members = ["derive"]
+
+[package]
+name = "uklad"
+version = "2.0.1"
+edition = "2024"
+rust-version = "1.85"
+description = "A compact binary encoder and decoder"
+repository = "https://github.com/bgw/uklad"
+documentation = "https://docs.rs/uklad"
+categories = ["encoding", "network-programming"]
+keywords = ["binary", "encode", "decode", "serialize", "deserialize"]
+
+[features]
+default = ["std", "derive"]
+std = ["alloc", "serde?/std"]
+alloc = ["serde?/alloc"]
+derive = ["dep:uklad_derive"]
+
+[dependencies]
+uklad_derive = { path = "derive", version = "2.0.1", optional = true }
+serde = { version = "1.0.229", default-features = false, optional = true }
+
+[dev-dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

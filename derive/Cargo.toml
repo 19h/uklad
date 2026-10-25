@@ -1,0 +1,18 @@
+[package]
+name = "uklad_derive"
+version = "2.0.1"
+edition = "2024"
+rust-version = "1.85"
+description = "Derive macros for uklad"
+repository = "https://github.com/bgw/uklad"
+documentation = "https://docs.rs/uklad_derive"
+categories = ["encoding", "network-programming"]
+keywords = ["binary", "encode", "decode", "serialize", "deserialize"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.107"
+quote = "1.0.47"
+syn = { version = "3.0.9", features = ["full"] }
