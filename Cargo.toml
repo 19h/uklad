@@ -21,7 +21,7 @@ derive = ["dep:uklad_derive"]
 [dependencies]
 uklad_derive = { path = "derive", version = "2.0.1", optional = true }
 serde = { version = "1.0", default-features = false, optional = true }
-unty = "0.0.4"
+unty = "0.0.5"
 
 [dev-dependencies]
 ouroboros = "0.18.3"
