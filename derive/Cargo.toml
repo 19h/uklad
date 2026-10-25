@@ -1,11 +1,13 @@
 [package]
 name = "uklad_derive"
-version = "2.0.1"
+version = "1.0.0"
 edition = "2024"
 rust-version = "1.85"
 description = "Derive macros for uklad"
-repository = "https://github.com/bgw/uklad"
+repository = "https://github.com/19h/uklad"
 documentation = "https://docs.rs/uklad_derive"
+license = "MIT OR Apache-2.0"
+readme = "readme.md"
 categories = ["encoding", "network-programming"]
 keywords = ["binary", "encode", "decode", "serialize", "deserialize"]
 

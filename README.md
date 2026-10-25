@@ -1,22 +1,28 @@
 # uklad
 
-A compact binary encoder and decoder for Rust. Values are serialized without
-field names or other metadata, so the encoded output is typically the same size
-as, or smaller than, the value's in-memory representation.
+[![crates.io](https://img.shields.io/crates/v/uklad.svg)](https://crates.io/crates/uklad)
+[![docs.rs](https://img.shields.io/docsrs/uklad)](https://docs.rs/uklad)
+[![license](https://img.shields.io/crates/l/uklad.svg)](LICENSE-MIT)
 
-The crate provides:
+`uklad` is a compact binary serialization format and Rust implementation. It
+encodes values without field names, tags, or other metadata, so the output is
+typically no larger than the in-memory representation of the value.
+
+## Features
 
 - `Encode` and `Decode` traits with derive macros.
-- No required dependencies.
-- `no_std` support with optional `alloc`.
-- Configurable byte order, integer encoding, and size limits.
-- Optional serde interoperability.
+- Compact variable-length integer encoding, with an alternative fixed-width
+  encoding for predictable sizes.
+- Configurable byte order and decode size limits.
+- `no_std` support with an optional `alloc` feature.
+- Optional [serde](https://serde.rs) interoperability.
+- No required runtime dependencies.
 
 ## Installation
 
 ```toml
 [dependencies]
-uklad = "2.0"
+uklad = "1.0"
 ```
 
 The minimum supported Rust version is 1.85.0.
@@ -40,8 +46,7 @@ fn main() {
 
     let world = World(vec![Entity { x: 0.0, y: 4.0 }, Entity { x: 10.0, y: 20.5 }]);
 
-    let encoded: Vec<u8> = uklad::encode_to_vec(&world, config).unwrap();
-
+    let encoded = uklad::encode_to_vec(&world, config).unwrap();
     let (decoded, len): (World, usize) =
         uklad::decode_from_slice(&encoded, config).unwrap();
 
@@ -50,31 +55,39 @@ fn main() {
 }
 ```
 
-Encoding and decoding also work directly with readers and writers, and with
-pre-allocated buffers. See the
-[documentation](https://docs.rs/uklad/latest/uklad/) for the full API.
+The same types work with files, network streams, custom readers and writers, and
+pre-allocated buffers:
+
+| Situation              | Encode                  | Decode                  |
+| ---------------------- | ----------------------- | ----------------------- |
+| Files, streams         | `encode_into_std_write` | `decode_from_std_read`  |
+| In-memory buffers      | `encode_to_vec`         | `decode_from_slice`     |
+| Custom reader/writer   | `encode_into_writer`    | `decode_from_reader`    |
+| Pre-allocated buffers  | `encode_into_slice`     | `decode_from_slice`     |
+
+See the [API documentation](https://docs.rs/uklad) for the full API.
 
 ## Feature flags
 
-| Feature  | Default | Description                                                        |
-| -------- | ------- | ------------------------------------------------------------------ |
-| `std`    | yes     | Standard library support, including `std::io` readers and writers. |
-| `alloc`  | yes     | Support for `Vec`, `String`, `Box`, and other alloc types.         |
-| `derive` | yes     | `#[derive(Encode, Decode)]` macros.                                |
-| `serde`  | no      | Adapters and encode/decode functions for serde types.              |
+| Feature  | Default | Description                                                              |
+| -------- | ------- | ------------------------------------------------------------------------ |
+| `std`    | yes     | Standard library support, including `std::io` readers and writers.       |
+| `alloc`  | yes     | Support for `Vec`, `String`, `Box`, and other allocation-backed types.   |
+| `derive` | yes     | `#[derive(Encode, Decode, BorrowDecode)]` macros.                        |
+| `serde`  | no      | Adapters and encode/decode functions for serde types.                    |
 
 For `no_std` targets with an allocator:
 
 ```toml
 [dependencies]
-uklad = { version = "2.0", default-features = false, features = ["alloc", "derive"] }
+uklad = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
 ```
 
 ## Configuration
 
-`config::standard()` selects compact variable-length integers. `config::legacy()`
-uses a fixed-length integer encoding. Both can be adjusted for byte order and
-size limits:
+`config::standard()` enables compact variable-length integer encoding.
+`config::legacy()` uses fixed-width integer encoding. Both can be adjusted for
+byte order and size limits:
 
 ```rust
 let config = uklad::config::standard()
@@ -84,11 +97,17 @@ let config = uklad::config::standard()
 
 ## Untrusted input
 
-When decoding data from an untrusted source, enable a size limit with
-`Configuration::with_limit`. This bounds pre-allocation and causes decoding to
-fail with `DecodeError::LimitExceeded` instead of attempting to allocate an
-excessive amount of memory.
+Decoding does not trust length prefixes. When the input may come from an
+untrusted source, set a limit with `Configuration::with_limit`. That bounds
+pre-allocation and makes decoding fail with `DecodeError::LimitExceeded` instead
+of attempting to allocate an excessive amount of memory.
 
-## Format
+## Wire format
 
-The serialization format is specified in [docs/spec.md](docs/spec.md).
+The format is specified in [docs/spec.md](docs/spec.md). It is stable across
+releases of the 1.x series.
+
+## License
+
+Licensed under either of the [Apache License, Version 2.0](LICENSE-APACHE) or the
+[MIT license](LICENSE-MIT), at your option.
