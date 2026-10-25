@@ -9,7 +9,7 @@ authors = [
     "Zoey Riordan <zoey@dos.cafe>",
     "Victor Koenders <bincode@trangar.com>",
 ]
-exclude = ["logo.svg", "examples/*", ".gitignore", ".github/"]
+exclude = ["examples/*", ".gitignore", ".github/"]
 rust-version = "1.85.0"
 
 publish = true
@@ -40,32 +40,13 @@ unty = "0.0.4"
 [dev-dependencies]
 ouroboros = "0.18.3"
 serde_derive = "1.0"
-serde_json = { version = "1.0", default-features = false }
+serde_json = "1.0"
 tempfile = "3.2"
-criterion = "0.6"
-rand = "0.8"
 uuid = { version = "1.1", features = ["serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 glam = { version = "0.25", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 bumpalo = { version = "3.16.0", features = ["collections"] }
-
-[[bench]]
-name = "varint"
-harness = false
-
-[[bench]]
-name = "inline"
-harness = false
-
-[[bench]]
-name = "string"
-harness = false
-
-[profile.bench]
-codegen-units = 1
-debug = 1
-lto = true
 
 [package.metadata.docs.rs]
 all-features = true
