@@ -6,16 +6,16 @@
 //! - [encode_into_slice]
 //! - [encode_to_vec]
 //!
-//! For interop with bincode's [Decode]/[Encode], you can use:
+//! For interop with uklad's [Decode]/[Encode], you can use:
 //! - [Compat]
 //! - [BorrowCompat]
 //!
-//! For interop with bincode's `derive` feature, you can use the `#[bincode(with_serde)]` attribute on each field that implements serde's traits.
+//! For interop with uklad's `derive` feature, you can use the `#[uklad(with_serde)]` attribute on each field that implements serde's traits.
 //!
 //! ```
 //! # #[cfg(feature = "derive")]
 //! # mod foo {
-//! # use bincode::{Decode, Encode};
+//! # use uklad::{Decode, Encode};
 //! # use serde_derive::{Deserialize, Serialize};
 //! #[derive(Serialize, Deserialize)]
 //! pub struct SerdeType {
@@ -24,15 +24,15 @@
 //!
 //! #[derive(Decode, Encode)]
 //! pub struct StructWithSerde {
-//!     #[bincode(with_serde)]
+//!     #[uklad(with_serde)]
 //!     pub serde: SerdeType,
 //! }
 //!
 //! #[derive(Decode, Encode)]
 //! pub enum EnumWithSerde {
-//!     Unit(#[bincode(with_serde)] SerdeType),
+//!     Unit(#[uklad(with_serde)] SerdeType),
 //!     Struct {
-//!         #[bincode(with_serde)]
+//!         #[uklad(with_serde)]
 //!         serde: SerdeType,
 //!     },
 //! }
@@ -41,7 +41,7 @@
 //!
 //! # Known issues
 //!
-//! Because bincode is a format without meta data, there are several known issues with serde's attributes. Please do not use any of the following attributes if you plan on using bincode, or use bincode's own `derive` macros.
+//! Because uklad is a format without meta data, there are several known issues with serde's attributes. Please do not use any of the following attributes if you plan on using uklad, or use uklad's own `derive` macros.
 //! - `#[serde(flatten)]`
 //! - `#[serde(skip)]`
 //! - `#[serde(skip_deserializing)]`
@@ -50,15 +50,15 @@
 //! - `#[serde(tag = "...")]`
 //! - `#[serde(untagged)]`
 //!
-//! **Using any of the above attributes can and will cause issues with bincode and will result in lost data**. Consider using bincode's own derive macro instead.
+//! **Using any of the above attributes can and will cause issues with uklad and will result in lost data**. Consider using uklad's own derive macro instead.
 //!
 //! # Why move away from serde?
 //!
 //! Serde is a great library, but it has some issues that makes us want to be decoupled from serde:
 //! - The issues documented above with attributes.
-//! - Serde has chosen to not have a MSRV ([source](https://github.com/serde-rs/serde/pull/2257)). We think MSRV is important, bincode 1 still compiles with rust 1.18.
+//! - Serde has chosen to not have a MSRV ([source](https://github.com/serde-rs/serde/pull/2257)). We think MSRV is important, uklad 1 still compiles with rust 1.18.
 //! - Before serde we had rustc-serializer. Serde has more than replaced rustc-serializer, but we can imagine a future where serde is replaced by something else.
-//! - We believe that less dependencies is better, and that you should be able to choose your own dependencies. If you disable all features, bincode 2 only has 1 dependency. ([`unty`], a micro crate we manage ourselves)
+//! - We believe that less dependencies is better, and that you should be able to choose your own dependencies. If you disable all features, uklad 2 only has 1 dependency. ([`unty`], a micro crate we manage ourselves)
 //!
 //! **note:** just because we're making serde an optional dependency, it does not mean we're dropping support for serde. Serde will still be fully supported, we're just giving you the option to not use it.
 //!
@@ -78,15 +78,15 @@ pub use self::ser::*;
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum DecodeError {
-    /// Bincode does not support serde's `any` decoding feature.
+    /// Uklad does not support serde's `any` decoding feature.
     ///
     /// See the "known issues" list in the serde module for more information on this.
     AnyNotSupported,
 
-    /// Bincode does not support serde identifiers
+    /// Uklad does not support serde identifiers
     IdentifierNotSupported,
 
-    /// Bincode does not support serde's `ignored_any`.
+    /// Uklad does not support serde's `ignored_any`.
     ///
     /// See the "known issues" list in the serde module for more information on this.
     IgnoredAnyNotSupported,
@@ -98,7 +98,7 @@ pub enum DecodeError {
     #[cfg(not(feature = "alloc"))]
     CannotAllocate,
 
-    /// Custom serde error but bincode is unable to allocate a string. Set a breakpoint where this is thrown for more information.
+    /// Custom serde error but uklad is unable to allocate a string. Set a breakpoint where this is thrown for more information.
     #[cfg(not(feature = "alloc"))]
     CustomError,
 }
@@ -135,14 +135,14 @@ impl Into<crate::error::DecodeError> for DecodeError {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum EncodeError {
-    /// Serde provided bincode with a sequence without a length, which is not supported in bincode
+    /// Serde provided uklad with a sequence without a length, which is not supported in uklad
     SequenceMustHaveLength,
 
-    /// [Serializer::collect_str] got called but bincode was unable to allocate memory.
+    /// [Serializer::collect_str] got called but uklad was unable to allocate memory.
     #[cfg(not(feature = "alloc"))]
     CannotCollectStr,
 
-    /// Custom serde error but bincode is unable to allocate a string. Set a breakpoint where this is thrown for more information.
+    /// Custom serde error but uklad is unable to allocate a string. Set a breakpoint where this is thrown for more information.
     #[cfg(not(feature = "alloc"))]
     CustomError,
 }

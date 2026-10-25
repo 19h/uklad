@@ -8,9 +8,9 @@ use std::collections::BTreeSet;
 type NodeId = u64;
 
 #[derive(
-    bincode_2::Encode, bincode_2::Decode, serde::Serialize, serde::Deserialize, Debug, PartialEq, Eq,
+    uklad_2::Encode, uklad_2::Decode, serde::Serialize, serde::Deserialize, Debug, PartialEq, Eq,
 )]
-#[bincode(crate = "bincode_2")]
+#[uklad(crate = "uklad_2")]
 pub struct Membership {
     /// learners set
     learners: BTreeSet<NodeId>,

@@ -1,6 +1,6 @@
 #![cfg(feature = "derive")]
 
-use bincode::{Decode, Encode};
+use uklad::{Decode, Encode};
 
 #[derive(Encode, Decode, Clone)]
 pub struct A;

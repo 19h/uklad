@@ -18,51 +18,51 @@ struct Foo {
     pub b: u32,
 }
 
-impl bincode::Encode for Foo {
-    fn encode<E: bincode::enc::Encoder>(
+impl uklad::Encode for Foo {
+    fn encode<E: uklad::enc::Encoder>(
         &self,
         encoder: &mut E,
-    ) -> Result<(), bincode::error::EncodeError> {
+    ) -> Result<(), uklad::error::EncodeError> {
         self.a.encode(encoder)?;
         self.b.encode(encoder)?;
         Ok(())
     }
 }
 
-impl<Context> bincode::Decode<Context> for Foo {
-    fn decode<D: bincode::de::Decoder>(
+impl<Context> uklad::Decode<Context> for Foo {
+    fn decode<D: uklad::de::Decoder>(
         decoder: &mut D,
-    ) -> Result<Self, bincode::error::DecodeError> {
+    ) -> Result<Self, uklad::error::DecodeError> {
         Ok(Self {
-            a: bincode::Decode::decode(decoder)?,
-            b: bincode::Decode::decode(decoder)?,
+            a: uklad::Decode::decode(decoder)?,
+            b: uklad::Decode::decode(decoder)?,
         })
     }
 }
-bincode::impl_borrow_decode!(Foo);
+uklad::impl_borrow_decode!(Foo);
 
 #[test]
 fn test_vec() {
-    let vec = bincode::encode_to_vec(Foo { a: 5, b: 10 }, bincode::config::standard()).unwrap();
+    let vec = uklad::encode_to_vec(Foo { a: 5, b: 10 }, uklad::config::standard()).unwrap();
     assert_eq!(vec, &[5, 10]);
 
     let (foo, len): (Foo, usize) =
-        bincode::decode_from_slice(&vec, bincode::config::standard()).unwrap();
+        uklad::decode_from_slice(&vec, uklad::config::standard()).unwrap();
     assert_eq!(foo.a, 5);
     assert_eq!(foo.b, 10);
     assert_eq!(len, 2);
 
-    let vec: Vec<u8> = bincode::decode_from_slice(
+    let vec: Vec<u8> = uklad::decode_from_slice(
         &[4, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4],
-        bincode::config::legacy(),
+        uklad::config::legacy(),
     )
     .unwrap()
     .0;
     assert_eq!(vec, &[1, 2, 3, 4]);
 
-    let vec: Vec<Cow<'static, u8>> = bincode::decode_from_slice(
+    let vec: Vec<Cow<'static, u8>> = uklad::decode_from_slice(
         &[4, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4],
-        bincode::config::legacy(),
+        uklad::config::legacy(),
     )
     .unwrap()
     .0;
@@ -130,7 +130,7 @@ fn test_alloc_commons() {
 
 #[test]
 fn test_container_limits() {
-    use bincode::{error::DecodeError, BorrowDecode, Decode};
+    use uklad::{error::DecodeError, BorrowDecode, Decode};
 
     const DECODE_LIMIT: usize = 100_000;
 
@@ -138,19 +138,19 @@ fn test_container_limits() {
     let test_cases = &[
         // u64::max_value(), should overflow
         #[cfg(target_pointer_width = "64")]
-        bincode::encode_to_vec(u64::MAX, bincode::config::standard()).unwrap(),
+        uklad::encode_to_vec(u64::MAX, uklad::config::standard()).unwrap(),
         #[cfg(target_pointer_width = "32")]
-        bincode::encode_to_vec(u32::MAX, bincode::config::standard()).unwrap(),
+        uklad::encode_to_vec(u32::MAX, uklad::config::standard()).unwrap(),
         // A high value which doesn't overflow, but exceeds the decode limit
-        bincode::encode_to_vec(DECODE_LIMIT as u64, bincode::config::standard()).unwrap(),
+        uklad::encode_to_vec(DECODE_LIMIT as u64, uklad::config::standard()).unwrap(),
     ];
 
     fn validate_fail<T: Decode<()> + for<'de> BorrowDecode<'de, ()> + core::fmt::Debug>(
         slice: &[u8],
     ) {
-        let result = bincode::decode_from_slice::<T, _>(
+        let result = uklad::decode_from_slice::<T, _>(
             slice,
-            bincode::config::standard().with_limit::<DECODE_LIMIT>(),
+            uklad::config::standard().with_limit::<DECODE_LIMIT>(),
         );
 
         let name = core::any::type_name::<T>();
@@ -184,14 +184,14 @@ fn test_arc_str() {
 
     let start: Arc<str> = Arc::from("Example String");
     let mut target = [0u8; 100];
-    let config = bincode::config::standard();
+    let config = uklad::config::standard();
 
     let len = {
         let start: Arc<str> = Arc::clone(&start);
-        bincode::encode_into_slice(start, &mut target, config).unwrap()
+        uklad::encode_into_slice(start, &mut target, config).unwrap()
     };
     let slice = &target[..len];
 
-    let decoded: Arc<str> = bincode::borrow_decode_from_slice(slice, config).unwrap().0;
+    let decoded: Arc<str> = uklad::borrow_decode_from_slice(slice, config).unwrap().0;
     assert_eq!(decoded, start);
 }

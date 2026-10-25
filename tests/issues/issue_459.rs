@@ -4,10 +4,10 @@ extern crate std;
 
 use std::collections::BTreeMap;
 
-#[derive(bincode::Encode)]
+#[derive(uklad::Encode)]
 struct AllTypes(BTreeMap<u8, AllTypes>);
 
 #[test]
 fn test_issue_459() {
-    let _result = bincode::encode_to_vec(AllTypes(BTreeMap::new()), bincode::config::standard());
+    let _result = uklad::encode_to_vec(AllTypes(BTreeMap::new()), uklad::config::standard());
 }

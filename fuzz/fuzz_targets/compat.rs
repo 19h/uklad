@@ -9,8 +9,8 @@ use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
 #[derive(
-    bincode::Decode,
-    bincode::Encode,
+    uklad::Decode,
+    uklad::Encode,
     PartialEq,
     Debug,
     serde::Serialize,
@@ -49,26 +49,26 @@ enum AllTypes {
 }
 
 fuzz_target!(|data: &[u8]| {
-    let config = bincode::config::legacy().with_limit::<1024>();
+    let config = uklad::config::legacy().with_limit::<1024>();
     #[allow(deprecated)]
-    let mut configv1 = bincodev1::config();
+    let mut configv1 = ukladv1::config();
     configv1.limit(1024);
-    let bincode_v1: Result<AllTypes, _> = configv1.deserialize_from(data);
-    let bincode_v2: Result<(AllTypes, _), _> = bincode::decode_from_slice(data, config);
+    let uklad_v1: Result<AllTypes, _> = configv1.deserialize_from(data);
+    let uklad_v2: Result<(AllTypes, _), _> = uklad::decode_from_slice(data, config);
 
-    match (&bincode_v1, &bincode_v2) {
+    match (&uklad_v1, &uklad_v2) {
         (Err(e), _) if e.to_string() == "the size limit has been reached" => {}
-        (_, Err(bincode::error::DecodeError::LimitExceeded)) => {}
-        (Ok(bincode_v1), Ok((bincode_v2, _))) if bincode_v1 != bincode_v2 => {
+        (_, Err(uklad::error::DecodeError::LimitExceeded)) => {}
+        (Ok(uklad_v1), Ok((uklad_v2, _))) if uklad_v1 != uklad_v2 => {
             println!("Bytes:      {:?}", data);
-            println!("Bincode V1: {:?}", bincode_v1);
-            println!("Bincode V2: {:?}", bincode_v2);
+            println!("Uklad V1: {:?}", uklad_v1);
+            println!("Uklad V2: {:?}", uklad_v2);
             panic!("failed equality check");
         }
         (Ok(_), Err(_)) | (Err(_), Ok(_)) => {
             println!("Bytes:      {:?}", data);
-            println!("Bincode V1: {:?}", bincode_v1);
-            println!("Bincode V2: {:?}", bincode_v2);
+            println!("Uklad V1: {:?}", uklad_v1);
+            println!("Uklad V2: {:?}", uklad_v2);
             panic!("failed equality check");
         }
 

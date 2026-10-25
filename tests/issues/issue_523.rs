@@ -2,7 +2,7 @@
 
 extern crate std;
 
-use bincode::{Decode, Encode};
+use uklad::{Decode, Encode};
 use std::borrow::Cow;
 
 #[derive(Clone, Encode, Decode)]

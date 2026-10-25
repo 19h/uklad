@@ -5,9 +5,9 @@
 use rand::Rng;
 
 #[derive(
-    Debug, bincode_2::Encode, bincode_2::Decode, serde::Serialize, serde::Deserialize, PartialEq, Eq,
+    Debug, uklad_2::Encode, uklad_2::Decode, serde::Serialize, serde::Deserialize, PartialEq, Eq,
 )]
-#[bincode(crate = "bincode_2")]
+#[uklad(crate = "uklad_2")]
 pub struct Lcg64Xsh32 {
     state: u64,
     increment: u64,

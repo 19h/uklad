@@ -1,6 +1,6 @@
 #![cfg(feature = "derive")]
 
-#[derive(bincode::Encode, bincode::Decode)]
+#[derive(uklad::Encode, uklad::Decode)]
 pub struct Eg<D, E> {
     data: (D, E),
 }

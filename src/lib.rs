@@ -2,16 +2,16 @@
 #![warn(missing_docs, unused_lifetimes)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-//! Bincode is a crate for encoding and decoding using a tiny binary
+//! Uklad is a crate for encoding and decoding using a tiny binary
 //! serialization strategy.  Using it, you can easily go from having
 //! an object in memory, quickly serialize it to bytes, and then
 //! deserialize it back just as fast!
 //!
-//! If you're coming from bincode 1, check out our [migration guide](migration_guide/index.html)
+//! If you're coming from uklad 1, check out our [migration guide](migration_guide/index.html)
 //!
 //! # Serde
 //!
-//! Starting from bincode 2, serde is now an optional dependency. If you want to use serde, please enable the `serde` feature. See [Features](#features) for more information.
+//! Starting from uklad 2, serde is now an optional dependency. If you want to use serde, please enable the `serde` feature. See [Features](#features) for more information.
 //!
 //! # Features
 //!
@@ -21,11 +21,11 @@
 //! |alloc | Yes    | No          |All common containers in alloc, like `Vec`, `String`, `Box`|`encode_to_vec`|
 //! |atomic| Yes    | No          |All `Atomic*` integer types, e.g. `AtomicUsize`, and `AtomicBool`||
 //! |derive| Yes    | No          |||Enables the `BorrowDecode`, `Decode` and `Encode` derive macros|
-//! |serde | No     | Yes (MSRV reliant on serde)|`Compat` and `BorrowCompat`, which will work for all types that implement serde's traits|serde-specific encode/decode functions in the [serde] module|Note: There are several [known issues](serde/index.html#known-issues) when using serde and bincode|
+//! |serde | No     | Yes (MSRV reliant on serde)|`Compat` and `BorrowCompat`, which will work for all types that implement serde's traits|serde-specific encode/decode functions in the [serde] module|Note: There are several [known issues](serde/index.html#known-issues) when using serde and uklad|
 //!
 //! # Which functions to use
 //!
-//! Bincode has a couple of pairs of functions that are used in different situations.
+//! Uklad has a couple of pairs of functions that are used in different situations.
 //!
 //! |Situation|Encode|Decode|
 //! |---|---|---
@@ -34,7 +34,7 @@
 //! |You want to use a custom [Reader] and [Writer]|[`encode_into_writer`]|[`decode_from_reader`]|
 //! |You're working with pre-allocated buffers or on embedded targets|[`encode_into_slice`]|[`decode_from_slice`]|
 //!
-//! **Note:** If you're using `serde`, use `bincode::serde::...` instead of `bincode::...`
+//! **Note:** If you're using `serde`, use `uklad::serde::...` instead of `uklad::...`
 //!
 //! # Example
 //!
@@ -51,10 +51,10 @@
 //!     [0u8, 1u8, 2u8, 3u8]
 //! );
 //!
-//! let length = bincode::encode_into_slice(
+//! let length = uklad::encode_into_slice(
 //!     input,
 //!     &mut slice,
-//!     bincode::config::standard()
+//!     uklad::config::standard()
 //! ).unwrap();
 //!
 //! let slice = &slice[..length];
@@ -62,7 +62,7 @@
 //!
 //! // Decoding works the same as encoding.
 //! // The trait used is `Decode`, and can also be automatically implemented with the `derive` feature.
-//! let decoded: (u8, u32, i128, char, [u8; 4]) = bincode::decode_from_slice(slice, bincode::config::standard()).unwrap().0;
+//! let decoded: (u8, u32, i128, char, [u8; 4]) = uklad::decode_from_slice(slice, uklad::config::standard()).unwrap().0;
 //!
 //! assert_eq!(decoded, input);
 //! ```
@@ -71,8 +71,8 @@
 //! [`net::TcpStream`]: std::net::TcpStream
 //!
 
-#![doc(html_root_url = "https://docs.rs/bincode/2.0.1")]
-#![crate_name = "bincode"]
+#![doc(html_root_url = "https://docs.rs/uklad/2.0.1")]
+#![crate_name = "uklad"]
 #![crate_type = "rlib"]
 
 #[cfg(feature = "alloc")]

@@ -15,8 +15,8 @@ fn test() {
         position: vec3(2.0, 2.0, 2.0),
     };
 
-    let m = bincode::serde::encode_to_vec(&instance, bincode::config::standard()).unwrap();
-    let instance2: Instance = bincode::serde::decode_from_slice(&m, bincode::config::standard())
+    let m = uklad::serde::encode_to_vec(&instance, uklad::config::standard()).unwrap();
+    let instance2: Instance = uklad::serde::decode_from_slice(&m, uklad::config::standard())
         .unwrap()
         .0;
 

@@ -10,7 +10,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-#[derive(bincode::Decode, bincode::Encode, PartialEq, Debug)]
+#[derive(uklad::Decode, uklad::Encode, PartialEq, Debug)]
 enum AllTypes {
     BTreeMap(BTreeMap<u8, u8>),
     HashMap(HashMap<u8, u8>),
@@ -41,12 +41,12 @@ enum AllTypes {
 }
 
 fuzz_target!(|data: &[u8]| {
-    let config = bincode::config::standard().with_limit::<1024>();
-    let result: Result<(AllTypes, _), _> = bincode::decode_from_slice(data, config);
+    let config = uklad::config::standard().with_limit::<1024>();
+    let result: Result<(AllTypes, _), _> = uklad::decode_from_slice(data, config);
 
     if let Ok((before, _)) = result {
-        let encoded = bincode::encode_to_vec(&before, config).expect("round trip");
-        let (after, _) = bincode::decode_from_slice(&encoded, config).unwrap();
+        let encoded = uklad::encode_to_vec(&before, config).expect("round trip");
+        let (after, _) = uklad::decode_from_slice(&encoded, config).unwrap();
         assert_eq!(before, after);
     }
 });

@@ -127,9 +127,9 @@ impl DeriveEnum {
                         // Note that the fields are available as locals because of the match destructuring above
                         // {
                         //      encoder.encode_u32(n)?;
-                        //      bincode::Encode::encode(a, encoder)?;
-                        //      bincode::Encode::encode(b, encoder)?;
-                        //      bincode::Encode::encode(c, encoder)?;
+                        //      uklad::Encode::encode(a, encoder)?;
+                        //      uklad::Encode::encode(b, encoder)?;
+                        //      uklad::Encode::encode(c, encoder)?;
                         // }
                         match_body.group(Delimiter::Brace, |body| {
                             // variant index
@@ -209,7 +209,7 @@ impl DeriveEnum {
 
         // we'll be generating:
         // variant => Err(
-        //    bincode::error::DecodeError::UnexpectedVariant {
+        //    uklad::error::DecodeError::UnexpectedVariant {
         //        found: variant,
         //        type_name: <enum_name>
         //        allowed: ...,
@@ -217,9 +217,9 @@ impl DeriveEnum {
         // )
         //
         // Where allowed is either:
-        // - bincode::error::AllowedEnumVariants::Range { min: 0, max: <max> }
+        // - uklad::error::AllowedEnumVariants::Range { min: 0, max: <max> }
         //   if we have no fixed value variants
-        // - bincode::error::AllowedEnumVariants::Allowed(&[<variant1>, <variant2>, ...])
+        // - uklad::error::AllowedEnumVariants::Allowed(&[<variant1>, <variant2>, ...])
         //   if we have fixed value variants
         result.ident_str("variant");
         result.puncts("=>");

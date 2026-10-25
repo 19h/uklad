@@ -25,38 +25,38 @@ fn random(rng: &mut impl Rng) -> FTXresponse<Trade> {
     }
 }
 
-#[derive(bincode_2::Encode, bincode_2::Decode, Serialize, Deserialize, Debug, PartialEq, Eq)]
-#[bincode(crate = "bincode_2")]
+#[derive(uklad_2::Encode, uklad_2::Decode, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[uklad(crate = "uklad_2")]
 pub enum FTXresponse<T> {
     Result(FTXresponseSuccess<T>),
     Error(FTXresponseFailure),
 }
 
 #[derive(
-    bincode_2::Encode, bincode_2::Decode, serde::Serialize, serde::Deserialize, Debug, PartialEq, Eq,
+    uklad_2::Encode, uklad_2::Decode, serde::Serialize, serde::Deserialize, Debug, PartialEq, Eq,
 )]
-#[bincode(crate = "bincode_2")]
+#[uklad(crate = "uklad_2")]
 pub struct FTXresponseSuccess<T> {
     pub success: bool,
     pub result: T,
 }
 
-#[derive(bincode_2::Encode, bincode_2::Decode, Serialize, Deserialize, Debug, PartialEq, Eq)]
-#[bincode(crate = "bincode_2")]
+#[derive(uklad_2::Encode, uklad_2::Decode, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[uklad(crate = "uklad_2")]
 pub struct FTXresponseFailure {
     pub success: bool,
     pub error: String,
 }
 
-#[derive(bincode_2::Encode, bincode_2::Decode, Serialize, Deserialize, Debug, PartialEq, Eq)]
-#[bincode(crate = "bincode_2")]
+#[derive(uklad_2::Encode, uklad_2::Decode, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[uklad(crate = "uklad_2")]
 pub enum TradeSide {
     Buy,
     Sell,
 }
 
-#[derive(bincode_2::Encode, bincode_2::Decode, Serialize, Deserialize, Debug, PartialEq)]
-#[bincode(crate = "bincode_2")]
+#[derive(uklad_2::Encode, uklad_2::Decode, Serialize, Deserialize, Debug, PartialEq)]
+#[uklad(crate = "uklad_2")]
 #[serde(rename_all = "camelCase")]
 pub struct Trade {
     pub id: u64,

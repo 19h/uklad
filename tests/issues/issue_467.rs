@@ -4,11 +4,11 @@ extern crate std;
 
 use std::collections::BTreeMap;
 
-#[derive(bincode::Decode, bincode::Encode)]
+#[derive(uklad::Decode, uklad::Encode)]
 struct AllTypes(BTreeMap<u8, AllTypes>);
 
 #[test]
 fn test_issue_467() {
     let _result: Result<(AllTypes, _), _> =
-        bincode::decode_from_slice(&[], bincode::config::standard().with_limit::<1024>());
+        uklad::decode_from_slice(&[], uklad::config::standard().with_limit::<1024>());
 }

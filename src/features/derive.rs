@@ -1,2 +1,2 @@
 #[cfg_attr(docsrs, doc(cfg(feature = "derive")))]
-pub use bincode_derive::{BorrowDecode, Decode, Encode};
+pub use uklad_derive::{BorrowDecode, Decode, Encode};
